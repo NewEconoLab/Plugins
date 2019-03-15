@@ -1,0 +1,12 @@
+﻿{
+  "PluginConfiguration": {
+    "Conn": "",
+    "DataBase": "",
+    "Coll_Task": "",
+    "Coll_DumpInfo": "",
+    "Coll_Block": "",
+    "Coll_Application": "",
+    "MongoDbIndexs": [
+    ]
+  }
+}
