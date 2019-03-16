@@ -32,8 +32,6 @@ namespace Neo.Plugins
                     //结束高度
                     var endHeight = b.ReadUInt32();
 
-                    Console.WriteLine(string.Format("leveldb中高度:{0}。acc起始高度:{1},结束高度:{2}",curHeight,startHeight,endHeight));
-
                     if (curHeight >= endHeight && curHeight != uint.MaxValue)
                     {
                         b.Dispose();
@@ -51,7 +49,6 @@ namespace Neo.Plugins
                     {
                         //获取到的数据的高度
                         var height = b.ReadUInt32();
-                        Console.WriteLine("处理到的高度："+height);
                         var count = b.ReadUInt32();
                         for (var i = 0; i < count; i++)
                         {
@@ -96,7 +93,6 @@ namespace Neo.Plugins
                 }
             }
             levelDB.Write(WriteOptions.Default, batch);
-            Console.WriteLine(Store.GetSnapshot().Height);
         }
     }
 }
