@@ -5,8 +5,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="NEL.Simple.SDK" Version="1.0.1" />
-    <PackageReference Include="neo-debug" Version="2.10.0" />
+    <PackageReference Include="NEL.Simple.SDK" Version="1.0.2" />
+    <PackageReference Include="neo-debug" Version="2.10.0.1" />
   </ItemGroup>
 
 </Project>
