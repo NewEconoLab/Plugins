@@ -18,56 +18,64 @@ namespace Neo.Plugins
 
         public void Restore()
         {
-            //查看当前store的高度
-            var curHeight = Store.GetSnapshot().Height;
+
 
             using (FileStream fs = new FileStream("release.zip", FileMode.Open, FileAccess.Read, FileShare.Read))
             using (ZipArchive zip = new ZipArchive(fs, ZipArchiveMode.Read))
-            using (Stream zs = zip.GetEntry("operation.acc").Open())
             {
-                BinaryReader b = new BinaryReader(zs);
+                foreach (var entry in zip.Entries)
                 {
-                    //开始高度
-                    var startHeight = b.ReadUInt32();
-                    //结束高度
-                    var endHeight = b.ReadUInt32();
-
-                    if (curHeight >= endHeight && curHeight != uint.MaxValue)
+                    using (Stream zs = entry.Open())
                     {
-                        b.Dispose();
-                        return;
-                    }
-
-                    if (curHeight < startHeight)
-                    {
-                        b.Dispose();
-                        throw new Exception("missing data");
-                    }
-
-                    List<LevelDbOperation> list = new List<LevelDbOperation>();
-                    while(true)
-                    {
-                        //获取到的数据的高度
-                        var height = b.ReadUInt32();
-                        var count = b.ReadUInt32();
-                        for (var i = 0; i < count; i++)
+                        Console.WriteLine("正在载入"+ entry.Name);
+                        BinaryReader b = new BinaryReader(zs);
                         {
-                            var lo = LevelDbOperation.Deserialize(ref b);
-                            //执行操作
-                            list.Add(lo);
-                        }
-                        if (height > curHeight || curHeight == UInt32.MaxValue)
-                        {
-                            ExecuteOperation(list);
-                        }
-                        list.Clear();
-                        if (endHeight == height)
-                            break;
-                    }
+                            //查看当前store的高度
+                            var curHeight = Store.GetSnapshot().Height;
 
+                            //开始高度
+                            var startHeight = b.ReadUInt32();
+                            //结束高度
+                            var endHeight = b.ReadUInt32();
+
+                            if (curHeight >= endHeight && curHeight != uint.MaxValue)
+                            {
+                                b.Dispose();
+                                return;
+                            }
+
+                            if (curHeight < startHeight)
+                            {
+                                b.Dispose();
+                                throw new Exception("missing data");
+                            }
+
+                            List<LevelDbOperation> list = new List<LevelDbOperation>();
+                            while (true)
+                            {
+                                //获取到的数据的高度
+                                var height = b.ReadUInt32();
+                                var count = b.ReadUInt32();
+                                for (var i = 0; i < count; i++)
+                                {
+                                    var lo = LevelDbOperation.Deserialize(ref b);
+                                    //执行操作
+                                    list.Add(lo);
+                                }
+                                if (height > curHeight || curHeight == UInt32.MaxValue)
+                                {
+                                    ExecuteOperation(list);
+                                }
+                                list.Clear();
+                                if (endHeight == height)
+                                    break;
+                            }
+
+                        }
+                        b.Dispose();
+                        Console.WriteLine("结束");
+                    }
                 }
-                b.Dispose();
-                Console.WriteLine("结束");
             }
         }
 

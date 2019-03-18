@@ -20,10 +20,15 @@ namespace Neo.Plugins
         {
             if (message is Persistence.WriteBatchTask wt)
             {
+                if (Settings.Default.Coll_Task == null)
+                    return;
+
                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Task, wt);
             }
             else if (message is Blockchain.ApplicationExecuted e)
             {
+                if (Settings.Default.Coll_Application == null)
+                    return;
                 JObject json = new JObject();
                 json["txid"] = e.Transaction.Hash.ToString();
                 json["blockindex"] = e.BlockIndex;
@@ -73,6 +78,8 @@ namespace Neo.Plugins
             }
             else if (message is Blockchain.DumpInfoExecuted d)
             {
+                if (Settings.Default.Coll_DumpInfo == null)
+                    return;
                 MyJson.JsonNode_Object data = new MyJson.JsonNode_Object();
                 data["txid"] = new MyJson.JsonNode_ValueString(d.Hash.ToString());
                 data["dimpInfo"] = new MyJson.JsonNode_ValueString(d.DumpInfoStr);
@@ -80,6 +87,8 @@ namespace Neo.Plugins
             }
             else if (message is Blockchain.PersistCompleted per)
             {
+                if (Settings.Default.Coll_Block == null)
+                    return;
                 var block = per.Block;
                 //block 存入数据库
                 NEL.Simple.SDK.Helper.MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block, BsonDocument.Parse(block.ToJson().ToString()));
