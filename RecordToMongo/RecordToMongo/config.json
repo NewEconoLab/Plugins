@@ -6,6 +6,7 @@
     "Coll_DumpInfo": "",
     "Coll_Block": "",
     "Coll_Application": "",
+    "Coll_SystemCounter": "",
     "MongoDbIndexs": [
     ]
   }
