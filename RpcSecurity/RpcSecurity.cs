@@ -14,21 +14,19 @@ namespace Neo.Plugins
             Settings.Load(GetConfiguration());
         }
 
-        public JObject OnProcess(HttpContext context, string method, JArray _params)
+        public void PreProcess(HttpContext context, string method, JArray _params)
         {
             if (!CheckAuth(context) || Settings.Default.DisabledMethods.Contains(method))
                 throw new RpcException(-400, "Access denied");
+        }
+
+        public JObject OnProcess(HttpContext context, string method, JArray _params)
+        {
             return null;
         }
 
         public void PostProcess(HttpContext context, string method, JArray _params, JObject result)
         {
-            throw new NotImplementedException();
-        }
-
-        public void PreProcess(HttpContext context, string method, JArray _params)
-        {
-            throw new NotImplementedException();
         }
 
         private bool CheckAuth(HttpContext context)

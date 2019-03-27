@@ -2,10 +2,11 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="neo-debug" Version="2.10.0.1" />
+    <PackageReference Include="neo-debug" Version="2.10.0.2" />
   </ItemGroup>
 
 </Project>

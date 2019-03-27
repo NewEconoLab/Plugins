@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
 using System.Linq;
-using System.Reflection;
 
 namespace Neo.Plugins
 {

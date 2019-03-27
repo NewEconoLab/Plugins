@@ -14,6 +14,11 @@ namespace Neo.Plugins
     {
         private readonly JArray bs_cache = new JArray();
 
+        public override void Configure()
+        {
+            Settings.Load(GetConfiguration());
+        }
+
         private static void Dump<TKey, TValue>(IEnumerable<KeyValuePair<TKey, TValue>> states)
             where TKey : ISerializable
             where TValue : ISerializable
@@ -68,7 +73,7 @@ namespace Neo.Plugins
             return true;
         }
 
-        public void OnPersist(Snapshot snapshot)
+        public void OnPersist(Snapshot snapshot, IReadOnlyList<Blockchain.ApplicationExecuted> applicationExecutedList)
         {
             if (Settings.Default.PersistAction.HasFlag(PersistActions.StorageChanges))
                 OnPersistStorage(snapshot);
@@ -79,10 +84,6 @@ namespace Neo.Plugins
             uint blockIndex = snapshot.Height;
             if (blockIndex >= Settings.Default.HeightToBegin)
             {
-                string dirPath = "./Storage";
-                Directory.CreateDirectory(dirPath);
-                string path = $"{HandlePaths(dirPath, blockIndex)}/dump-block-{blockIndex.ToString()}.json";
-
                 JArray array = new JArray();
 
                 foreach (DataCache<StorageKey, StorageItem>.Trackable trackable in snapshot.Storages.GetChangeSet())
@@ -116,13 +117,36 @@ namespace Neo.Plugins
                 bs_item["size"] = array.Count;
                 bs_item["storage"] = array;
                 bs_cache.Add(bs_item);
+            }
+        }
 
+        public void OnCommit(Snapshot snapshot)
+        {
+            if (Settings.Default.PersistAction.HasFlag(PersistActions.StorageChanges))
+                OnCommitStorage(snapshot);
+        }
+
+        public void OnCommitStorage(Snapshot snapshot)
+        {
+            uint blockIndex = snapshot.Height;
+            if (bs_cache.Count > 0)
+            {
                 if ((blockIndex % Settings.Default.BlockCacheSize == 0) || (blockIndex > Settings.Default.HeightToStartRealTimeSyncing))
                 {
+                    string dirPath = "./Storage";
+                    Directory.CreateDirectory(dirPath);
+                    string path = $"{HandlePaths(dirPath, blockIndex)}/dump-block-{blockIndex.ToString()}.json";
+
                     File.WriteAllText(path, bs_cache.ToString());
                     bs_cache.Clear();
                 }
             }
+        }
+
+        public bool ShouldThrowExceptionFromCommit(Exception ex)
+        {
+            Console.WriteLine($"Error writing States with StatesDumper.{Environment.NewLine}{ex}");
+            return true;
         }
 
         private static string HandlePaths(string dirPath, uint blockIndex)
@@ -135,26 +159,6 @@ namespace Neo.Plugins
             string dirPathWithBlock = $"{dirPath}/BlockStorage_{folder}";
             Directory.CreateDirectory(dirPathWithBlock);
             return dirPathWithBlock;
-        }
-
-        public override void Configure()
-        {
-            Settings.Load(GetConfiguration());
-        }
-
-        public void OnPersist(Snapshot snapshot, IReadOnlyList<Blockchain.ApplicationExecuted> applicationExecutedList)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void OnCommit(Snapshot snapshot)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool ShouldThrowExceptionFromCommit(Exception ex)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -2,7 +2,8 @@
   "PluginConfiguration": {
     "Conn": "",
     "DataBase": "",
-    "Coll_Task": "",
+    "Coll_Operation": "",
+    "Coll_Operation_Nep5": "",
     "Coll_DumpInfo": "",
     "Coll_Block": "",
     "Coll_Application": "",

@@ -18,12 +18,16 @@ namespace Neo.Plugins
 
         void IRecordPlugin.Record(object message)
         {
-            if (message is Persistence.WriteBatchTask wt)
+            if (message is IO.Caching.WriteBatchTask wt)
             {
-                if (Settings.Default.Coll_Task == null)
-                    return;
-
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Task, wt);
+                if (wt.enumDataTpye == IO.Caching.EnumDataTpye.native && Settings.Default.Coll_Operation == null)
+                {
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation, wt);
+                }
+                else if (wt.enumDataTpye == IO.Caching.EnumDataTpye.nep5 && Settings.Default.Coll_Operation_Nep5 == null)
+                {
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation_Nep5, wt);
+                }
             }
             else if (message is Blockchain.ApplicationExecuted e)
             {

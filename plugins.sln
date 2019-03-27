@@ -15,7 +15,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "StatesDumper", "StatesDumpe
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RecordToMongo", "RecordToMongo\RecordToMongo.csproj", "{35DE3B64-0FF1-4D97-8E73-381A5CA41AAC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RestoreDB", "RestoreDB\RestoreDB.csproj", "{F23F800A-6C59-4BA8-A41C-31AB4AE71E50}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RestoreDB", "RestoreDB\RestoreDB.csproj", "{F23F800A-6C59-4BA8-A41C-31AB4AE71E50}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CoreMetrics", "CoreMetrics\CoreMetrics.csproj", "{8777C33E-9F74-4B05-B68D-EE683EBD5AC0}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RpcNep5Tracker", "RpcNep5Tracker\RpcNep5Tracker.csproj", "{B89E0B2C-7808-49C7-97E1-39407627EAA5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RpcWallet", "RpcWallet\RpcWallet.csproj", "{2FF95B67-2158-4344-8746-2428983457D7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -51,6 +57,18 @@ Global
 		{F23F800A-6C59-4BA8-A41C-31AB4AE71E50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F23F800A-6C59-4BA8-A41C-31AB4AE71E50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F23F800A-6C59-4BA8-A41C-31AB4AE71E50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8777C33E-9F74-4B05-B68D-EE683EBD5AC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8777C33E-9F74-4B05-B68D-EE683EBD5AC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8777C33E-9F74-4B05-B68D-EE683EBD5AC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8777C33E-9F74-4B05-B68D-EE683EBD5AC0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B89E0B2C-7808-49C7-97E1-39407627EAA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B89E0B2C-7808-49C7-97E1-39407627EAA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B89E0B2C-7808-49C7-97E1-39407627EAA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B89E0B2C-7808-49C7-97E1-39407627EAA5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2FF95B67-2158-4344-8746-2428983457D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2FF95B67-2158-4344-8746-2428983457D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2FF95B67-2158-4344-8746-2428983457D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2FF95B67-2158-4344-8746-2428983457D7}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
