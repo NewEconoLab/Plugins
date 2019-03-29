@@ -10,4 +10,10 @@
     <PackageReference Include="neo-debug" Version="2.10.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="ImportBlocks\config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
