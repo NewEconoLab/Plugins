@@ -8,6 +8,7 @@
     "Coll_Block": "",
     "Coll_Application": "",
     "Coll_SystemCounter": "",
+    "Coll_Nep5State": "",
     "MongoDbIndexs": [
     ]
   }

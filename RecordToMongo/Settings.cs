@@ -15,6 +15,7 @@ namespace Neo.Plugins
         public string Coll_Block { get; }
         public string Coll_DumpInfo { get; }
         public string Coll_SystemCounter { get; }
+        public string Coll_Nep5State { get; }
         public string[] MongoDbIndex { get; }
 
         public static Settings Default
@@ -27,11 +28,12 @@ namespace Neo.Plugins
             this.Conn = section.GetSection("Conn").Value;
             this.DataBase = section.GetSection("DataBase").Value;
             this.Coll_Operation = section.GetSection("Coll_Operation").Value;
-            this.Coll_Operation = section.GetSection("Coll_Operation_Nep5").Value;
+            this.Coll_Operation_Nep5 = section.GetSection("Coll_Operation_Nep5").Value;
             this.Coll_Application = section.GetSection("Coll_Application").Value;
             this.Coll_Block = section.GetSection("Coll_Block").Value;
             this.Coll_DumpInfo = section.GetSection("Coll_DumpInfo").Value;
             this.Coll_SystemCounter = section.GetSection("Coll_SystemCounter").Value;
+            this.Coll_Nep5State = section.GetSection("Coll_Nep5State").Value;
             this.MongoDbIndex = section.GetSection("MongoDbIndexs").GetChildren().Select(p => p.Value).ToArray();
             if (!string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.Conn))
             {

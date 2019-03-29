@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using NEL.Simple.SDK.Helper;
 using MongoDB.Bson;
+using Neo.Wallets;
 
 namespace Neo.Plugins
 {
@@ -20,18 +21,18 @@ namespace Neo.Plugins
         {
             if (message is IO.Caching.WriteBatchTask wt)
             {
-                if (wt.enumDataTpye == IO.Caching.EnumDataTpye.native && Settings.Default.Coll_Operation == null)
+                if (wt.enumDataTpye == IO.Caching.EnumDataTpye.native && !string.IsNullOrEmpty(Settings.Default.Coll_Operation))
                 {
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation, wt);
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation, wt.writeBatchOperation);
                 }
-                else if (wt.enumDataTpye == IO.Caching.EnumDataTpye.nep5 && Settings.Default.Coll_Operation_Nep5 == null)
+                else if (wt.enumDataTpye == IO.Caching.EnumDataTpye.nep5 && !string.IsNullOrEmpty(Settings.Default.Coll_Operation_Nep5))
                 {
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation_Nep5, wt);
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation_Nep5, wt.writeBatchOperation);
                 }
             }
             else if (message is Blockchain.ApplicationExecuted e)
             {
-                if (Settings.Default.Coll_Application == null)
+                if (string.IsNullOrEmpty(Settings.Default.Coll_Application))
                     return;
                 JObject json = new JObject();
                 json["txid"] = e.Transaction.Hash.ToString();
@@ -82,7 +83,7 @@ namespace Neo.Plugins
             }
             else if (message is Blockchain.DumpInfoExecuted d)
             {
-                if (Settings.Default.Coll_DumpInfo == null)
+                if (string.IsNullOrEmpty(Settings.Default.Coll_DumpInfo))
                     return;
                 MyJson.JsonNode_Object data = new MyJson.JsonNode_Object();
                 data["txid"] = new MyJson.JsonNode_ValueString(d.Hash.ToString());
@@ -91,7 +92,7 @@ namespace Neo.Plugins
             }
             else if (message is Blockchain.PersistCompleted per)
             {
-                if (Settings.Default.Coll_Block == null)
+                if (string.IsNullOrEmpty(Settings.Default.Coll_Block))
                     return;
                 var block = per.Block;
                 //block 存入数据库
@@ -104,6 +105,14 @@ namespace Neo.Plugins
                 string replaceFliter = json.ToString();
                 NEL.Simple.SDK.Helper.MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, MongoDB.Bson.BsonDocument.Parse(replaceFliter));
 
+            }
+            else if (message is Nep5State n)
+            {
+                if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
+                    return;
+                //获取这个资产的精度
+                 var data = new { Address = n.Address.ToAddress(), AssetHash = n.AssetHash.ToString(), LastUpdatedBlock = n.LastUpdatedBlock, Balance =n.Balance.ToString() };
+                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
             }
         }
     }

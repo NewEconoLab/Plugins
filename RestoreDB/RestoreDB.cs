@@ -30,7 +30,6 @@ namespace Neo.Plugins
                 }).OrderBy(p => p.Start);
                 foreach (var p in paths)
                 {
-                    Console.WriteLine(p.Start);
                     using (FileStream fs = new FileStream(p.FileName, FileMode.Open, FileAccess.Read, FileShare.Read))
                     using (ZipArchive zip = new ZipArchive(fs, ZipArchiveMode.Read))
                     {
