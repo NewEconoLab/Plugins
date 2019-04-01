@@ -168,7 +168,7 @@ namespace Neo.Plugins
             _balances.Commit(snapshot.Height,EnumDataTpye.nep5);
             foreach (var k in _balances.dictionary.Keys)
             {
-                Nep5State nep5State = new Nep5State() { Address = k.AssetScriptHash, AssetHash = k.UserScriptHash, Balance = _balances.TryGet(k)?.Balance ?? 0, LastUpdatedBlock = _balances.TryGet(k)?.LastUpdatedBlock ?? snapshot.Height };
+                Nep5State nep5State = new Nep5State() { Address = k.UserScriptHash, AssetHash = k.AssetScriptHash, Balance = _balances.TryGet(k)?.Balance ?? 0, LastUpdatedBlock = _balances.TryGet(k)?.LastUpdatedBlock ?? snapshot.Height };
                 RecordToMongo(nep5State);
             }
             if (_shouldTrackHistory)
