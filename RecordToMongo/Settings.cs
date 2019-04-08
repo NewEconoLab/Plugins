@@ -35,7 +35,7 @@ namespace Neo.Plugins
             this.Coll_SystemCounter = section.GetSection("Coll_SystemCounter").Value;
             this.Coll_Nep5State = section.GetSection("Coll_Nep5State").Value;
             this.MongoDbIndex = section.GetSection("MongoDbIndexs").GetChildren().Select(p => p.Value).ToArray();
-            if (!string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.Conn))
+            if (!string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.DataBase))
             {
                 //创建索引
                 for (var i = 0; i < this.MongoDbIndex.Length; i++)
