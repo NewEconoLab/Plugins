@@ -103,8 +103,14 @@ namespace Neo.Plugins
                 string whereFliter = json.ToString();
                 json["lastBlockindex"] = block.Index;
                 string replaceFliter = json.ToString();
-                NEL.Simple.SDK.Helper.MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, MongoDB.Bson.BsonDocument.Parse(replaceFliter));
+                NEL.Simple.SDK.Helper.MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
 
+                json = new JObject();
+                json["counter"] = "notify";
+                whereFliter = json.ToString();
+                json["lastBlockindex"] = block.Index;
+                replaceFliter = json.ToString();
+                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
             }
             else if (message is Nep5State n)
             {
