@@ -70,16 +70,6 @@ namespace Neo.Plugins
                 }).ToArray();
                 //增加applicationLog输入到数据库
                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
-                if (e.IsLastInvocationTransaction)
-                {
-                    var blockindex = (int)e.BlockIndex;
-                    json = new JObject();
-                    json["counter"] = "notify";
-                    string whereFliter = json.ToString();
-                    json["lastBlockindex"] = blockindex;
-                    string replaceFliter = json.ToString();
-                    MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
-                }
             }
             else if (message is Blockchain.DumpInfoExecuted d)
             {

@@ -11,6 +11,7 @@ namespace Neo.Plugins
         public string DataBase { get; }
         public string Coll_Operation { get; }
         public string Coll_Operation_Nep5 { get; }
+        public string Coll_Operation_Utxo { get; }
         public string Coll_Application { get; }
         public string Coll_Block { get; }
         public string Coll_DumpInfo { get; }
@@ -29,6 +30,7 @@ namespace Neo.Plugins
             this.DataBase = section.GetSection("DataBase").Value;
             this.Coll_Operation = section.GetSection("Coll_Operation").Value;
             this.Coll_Operation_Nep5 = section.GetSection("Coll_Operation_Nep5").Value;
+            this.Coll_Operation_Utxo = section.GetSection("Coll_Operation_Utxo").Value;
             this.Coll_Application = section.GetSection("Coll_Application").Value;
             this.Coll_Block = section.GetSection("Coll_Block").Value;
             this.Coll_DumpInfo = section.GetSection("Coll_DumpInfo").Value;
