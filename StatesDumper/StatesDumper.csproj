@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="neo-debug" Version="2.10.2" />
+    <PackageReference Include="neo-debug" Version="2.10.2.1" />
   </ItemGroup>
 
   <ItemGroup>

@@ -6,7 +6,7 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="neo-debug" Version="2.10.2" />
+    <PackageReference Include="neo-debug" Version="2.10.2.1" />
   </ItemGroup>
   <ItemGroup>
     <None Update="RpcNep5Tracker\config.json">

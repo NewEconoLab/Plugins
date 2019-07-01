@@ -78,6 +78,7 @@ namespace Neo.Plugins
                 MyJson.JsonNode_Object data = new MyJson.JsonNode_Object();
                 data["txid"] = new MyJson.JsonNode_ValueString(d.Hash.ToString());
                 data["dimpInfo"] = new MyJson.JsonNode_ValueString(d.DumpInfoStr);
+                data["blockIndex"] = new MyJson.JsonNode_ValueString(d.BlockIndex.ToString());
                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_DumpInfo, BsonDocument.Parse(data.ToString()));
             }
             else if (message is Blockchain.PersistCompleted per)
