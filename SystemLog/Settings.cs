@@ -1,17 +1,18 @@
 ﻿using Microsoft.Extensions.Configuration;
-using Neo.SmartContract.Native;
 
 namespace Neo.Plugins
 {
     internal class Settings
     {
-        public long MaxFee { get; }
+        public string Path { get; }
+        public bool ConsoleOutput { get; }
 
         public static Settings Default { get; private set; }
 
         private Settings(IConfigurationSection section)
         {
-            this.MaxFee = (long)BigDecimal.Parse(section.GetValue("MaxFee", "0.1"), NativeContract.GAS.Decimals).Value;
+            this.Path = string.Format(section.GetSection("Path").Value, ProtocolSettings.Default.Magic.ToString("X8"));
+            this.ConsoleOutput = section.GetSection("ConsoleOutput").Get<bool>();
         }
 
         public static void Load(IConfigurationSection section)

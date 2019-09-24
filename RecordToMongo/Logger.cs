@@ -7,109 +7,125 @@ using System.Linq;
 using NEL.Simple.SDK.Helper;
 using MongoDB.Bson;
 using Neo.Wallets;
+using System.Text;
 
 namespace Neo.Plugins
 {
     public class Logger : Plugin,IRecordPlugin
     {
+        public override string Name => "RecordToMongo";
+
         public override void Configure()
         {
             Settings.Load(GetNELConfiguration());
         }
 
-        void IRecordPlugin.Record(object message)
-        {
-            if (message is IO.Caching.WriteBatchTask wt)
-            {
-                if (wt.enumDataTpye == IO.Caching.EnumDataTpye.native && !string.IsNullOrEmpty(Settings.Default.Coll_Operation))
-                {
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation, wt.writeBatchOperation);
-                }
-                else if (wt.enumDataTpye == IO.Caching.EnumDataTpye.nep5 && !string.IsNullOrEmpty(Settings.Default.Coll_Operation_Nep5))
-                {
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Operation_Nep5, wt.writeBatchOperation);
-                }
-            }
-            else if (message is Blockchain.ApplicationExecuted e)
-            {
-                if (string.IsNullOrEmpty(Settings.Default.Coll_Application))
-                    return;
-                JObject json = new JObject();
-                json["txid"] = e.Transaction.Hash.ToString();
-                json["blockindex"] = e.BlockIndex;
-                json["executions"] = e.ExecutionResults.Select(p =>
-                {
-                    JObject execution = new JObject();
-                    execution["trigger"] = p.Trigger;
-                    execution["contract"] = p.ScriptHash.ToString();
-                    execution["vmstate"] = p.VMState;
-                    execution["gas_consumed"] = p.GasConsumed.ToString();
-                    try
-                    {
-                        execution["stack"] = p.Stack.Select(q => q.ToParameter().ToJson()).ToArray();
-                    }
-                    catch (InvalidOperationException)
-                    {
-                        execution["stack"] = "error: recursive reference";
-                    }
-                    execution["notifications"] = p.Notifications.Select(q =>
-                    {
-                        JObject notification = new JObject();
-                        notification["contract"] = q.ScriptHash.ToString();
-                        try
-                        {
-                            notification["state"] = q.State.ToParameter().ToJson();
-                        }
-                        catch (InvalidOperationException)
-                        {
-                            notification["state"] = "error: recursive reference";
-                        }
-                        return notification;
-                    }).ToArray();
-                    return execution;
-                }).ToArray();
-                //增加applicationLog输入到数据库
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
-            }
-            else if (message is Blockchain.DumpInfoExecuted d)
-            {
-                if (string.IsNullOrEmpty(Settings.Default.Coll_DumpInfo))
-                    return;
-                MyJson.JsonNode_Object data = new MyJson.JsonNode_Object();
-                data["txid"] = new MyJson.JsonNode_ValueString(d.Hash.ToString());
-                data["dimpInfo"] = new MyJson.JsonNode_ValueString(d.DumpInfoStr);
-                data["blockIndex"] = new MyJson.JsonNode_ValueString(d.BlockIndex.ToString());
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_DumpInfo, BsonDocument.Parse(data.ToString()));
-            }
-            else if (message is Blockchain.PersistCompleted per)
+        public void Record(object message)
+        { 
+            if (message is Network.P2P.Payloads.Block block)
             {
                 if (string.IsNullOrEmpty(Settings.Default.Coll_Block))
                     return;
-                var block = per.Block;
-                //block 存入数据库
-                NEL.Simple.SDK.Helper.MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block, BsonDocument.Parse(block.ToJson().ToString()));
+                if (string.IsNullOrEmpty(Settings.Default.Coll_Tx))
+                    return;
+
+                //存入tx
+                foreach (Network.P2P.Payloads.Transaction tx in block.Transactions)
+                {
+                    var jo_tx = tx.ToJson();
+                    jo_tx["blockindex"] = block.Index;
+                    jo_tx["txid"] = jo_tx["hash"];
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Tx, BsonDocument.Parse(jo_tx.ToString()));
+
+                    //存入address_tx
+                    for (var i = 0; i < tx.Cosigners.Length; i++)
+                    {
+                        var addr = tx.Cosigners[i].Account.ToAddress().ToString();
+                        var blocktime = block.Timestamp;
+                        var addr_tx = new JObject();
+                        addr_tx["addr"] = addr;
+                        addr_tx["txid"] = jo_tx["hash"];
+                        addr_tx["blockindex"] = block.Index;
+                        addr_tx["blocktime"] = blocktime;
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr_Tx, BsonDocument.Parse(addr_tx.ToString()));
+
+                        //记录所有的address数量
+                        var addr_json = new JObject();
+                        addr_json["addr"] = addr;
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr,BsonDocument.Parse(addr_json.ToString()));
+                    }
+                }
+
+                //存入block
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block, BsonDocument.Parse(block.ToJson().ToString()));
                 //更新systemcounter
                 var json = new JObject();
                 json["counter"] = "block";
                 string whereFliter = json.ToString();
                 json["lastBlockindex"] = block.Index;
                 string replaceFliter = json.ToString();
-                NEL.Simple.SDK.Helper.MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
-
-                json = new JObject();
-                json["counter"] = "notify";
-                whereFliter = json.ToString();
-                json["lastBlockindex"] = block.Index;
-                replaceFliter = json.ToString();
                 MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
             }
-            else if (message is Nep5State n)
+            else if (message is Blockchain.ApplicationExecuted appExec)
+            {
+                if (appExec.Transaction == null)
+                    return;
+                JObject json = new JObject();
+                json["blockIndex"] = appExec.BlockIndex;
+                json["txid"] = appExec.Transaction.Hash.ToString();
+                json["trigger"] = appExec.Trigger;
+                json["vmstate"] = appExec.VMState;
+                json["gas_consumed"] = appExec.GasConsumed.ToString();
+                try
+                {
+                    json["stack"] = appExec.Stack.Select(q => q.ToParameter().ToJson()).ToArray();
+                }
+                catch (InvalidOperationException)
+                {
+                    json["stack"] = "error: recursive reference";
+                }
+                json["notifications"] = appExec.Notifications.Select((q,n) =>
+                {
+                    JObject notification = new JObject();
+                    notification["contract"] = q.ScriptHash.ToString();
+                    try
+                    {
+                        notification["state"] = q.State.ToParameter().ToJson();
+                        var array_value = (JArray)notification["state"]["value"];
+                        if (array_value[0]["value"].AsString() == "5472616e73666572")
+                        {
+                            var bytes_from = array_value[1]["value"].AsString();
+                            var _from = bytes_from == "" ? "" : (new UInt160(Helper.HexToBytes(bytes_from))).ToAddress().ToString();
+                            var bytes_to = array_value[2]["value"].AsString();
+                            var _to = bytes_to == "" ? "" : (new UInt160(Helper.HexToBytes(bytes_to))).ToAddress().ToString();
+                            var _value = array_value[3]["value"].AsString();
+                            JObject transfer = new JObject();
+                            transfer["blockindex"] = appExec.BlockIndex;
+                            transfer["n"] = n;
+                            transfer["txid"] = appExec.Transaction?.Hash.ToString();
+                            transfer["asset"] = q.ScriptHash.ToString();
+                            transfer["from"] = _from;
+                            transfer["to"] = _to;
+                            transfer["value"] = _value;
+                            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_NEP5transfer, BsonDocument.Parse(transfer.ToString()));
+                        }
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        notification["state"] = "error: recursive reference";
+                    }
+                    return notification;
+                }).ToArray();
+                //增加applicationLog输入到数据库
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
+            }
+            else if (message is Blockchain.Nep5State nep5State)
             {
                 if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
                     return;
                 //获取这个资产的精度
-                 var data = new { Address = n.Address.ToAddress(), AssetHash = n.AssetHash.ToString(), LastUpdatedBlock = n.LastUpdatedBlock, Balance =n.Balance.ToString() };
-                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+                var data = new { Address = nep5State.Address.ToAddress(), AssetHash = nep5State.AssetHash.ToString(), LastUpdatedBlock = nep5State.LastUpdatedBlock, Balance = nep5State.Balance.ToString() };
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
             }
         }
     }

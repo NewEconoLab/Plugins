@@ -142,7 +142,7 @@ namespace Neo.Plugins
                 }
             }
         }
-
+        
         public bool ShouldThrowExceptionFromCommit(Exception ex)
         {
             Console.WriteLine($"Error writing States with StatesDumper.{Environment.NewLine}{ex}");

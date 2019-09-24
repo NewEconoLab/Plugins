@@ -33,7 +33,7 @@ namespace Neo.Plugins
         private JObject GetBlocksTime(uint nBlocks, uint lastHeight)
         {
             // It is currently limited to query blocks generated in the last 24hours (86400 seconds)
-            uint maxNBlocksPerDay = 86400 / Blockchain.SecondsPerBlock;
+            uint maxNBlocksPerDay = 86400 / Blockchain.MillisecondsPerBlock * 1000;
             if (lastHeight != 0)
             {
                 if (lastHeight >= Blockchain.Singleton.Height)
@@ -71,9 +71,10 @@ namespace Neo.Plugins
             uint heightToBegin = lastHeight > 0 ? lastHeight - nBlocks : (Blockchain.Singleton.Height - 1) - nBlocks;
             for (uint i = heightToBegin; i <= heightToBegin + nBlocks; i++)
             {
-                JObject json = new JObject();
                 Header header = Blockchain.Singleton.Store.GetHeader(i);
                 if (header == null) break;
+
+                JObject json = new JObject();
                 json["timestamp"] = header.Timestamp;
                 json["height"] = i;
                 array.Add(json);
