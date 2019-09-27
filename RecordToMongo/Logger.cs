@@ -200,7 +200,7 @@ namespace Neo.Plugins
             //读取这个资产的信息
             var findStr = new JObject();
             findStr["assetid"] = _assetHash.ToString();
-            var info = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
+            var info = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
             decimals = info[0]["decimals"].ToString();
             symbol = info[0]["symbol"].ToString();
             if (_from != null)
