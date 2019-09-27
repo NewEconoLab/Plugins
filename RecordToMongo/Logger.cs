@@ -208,7 +208,20 @@ namespace Neo.Plugins
                     }
                 }
                 var data = new { Address = _from.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+                //这个高度有可能已经记录过一次了
+                var findStr = new JObject();
+                findStr["Address"] = _from.ToAddress().ToString();
+                findStr["AssetHash"] = _assetHash.ToString();
+                findStr["LastUpdatedBlock"] = _updatedBlock;
+                var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
+                if (ja.Count > 0)
+                {
+                    MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString(), data);
+                }
+                else
+                {
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+                }
             }
             if (_to != null)
             {
@@ -223,7 +236,19 @@ namespace Neo.Plugins
                     }
                 }
                 var data = new { Address = _to.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+                var findStr = new JObject();
+                findStr["Address"] = _to.ToAddress().ToString();
+                findStr["AssetHash"] = _assetHash.ToString();
+                findStr["LastUpdatedBlock"] = _updatedBlock;
+                var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
+                if (ja.Count > 0)
+                {
+                    MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString(), data);
+                }
+                else
+                {
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+                }
             }
         }
 
