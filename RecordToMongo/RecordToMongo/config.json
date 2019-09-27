@@ -11,6 +11,7 @@
     "Coll_Addr_Tx": "address_tx",
     "Coll_Addr": "address",
     "Coll_Block_SysFee": "block_sysfee",
+    "Coll_NEP5Asset": "NEP5asset",
     "MongoDbIndexs": [
       "{\"collName\": \"block\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\": 1},\"isUnique\": true}]}",
       "{\"collName\": \"tx\",\"indexs\": [{\"indexName\": \"i_txid_unique\",\"indexDefinition\": {\"txid\": 1},\"isUnique\": true}]}",
@@ -31,7 +32,8 @@
       "{\"collName\": \"address_tx\",\"indexs\": [{\"indexName\": \"i_addr\",\"indexDefinition\": {\"addr\":1},\"isUnique\": false}]}",
       "{\"collName\": \"address_tx\",\"indexs\": [{\"indexName\": \"i_blockindex\",\"indexDefinition\": {\"blockindex\":1},\"isUnique\": false}]}",
       "{\"collName\": \"address\",\"indexs\": [{\"indexName\": \"i_addr_unique\",\"indexDefinition\": {\"addr\":1},\"isUnique\": true}]}",
-      "{\"collName\": \"block_sysfee\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\":1},\"isUnique\": true}]}"
+      "{\"collName\": \"block_sysfee\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\":1},\"isUnique\": true}]}",
+      "{\"collName\": \"NEP5asset\",\"indexs\": [{\"indexName\": \"i_assetid_unique\",\"indexDefinition\": {\"assetid\":1},\"isUnique\": true}]}"
     ]
   }
 }
