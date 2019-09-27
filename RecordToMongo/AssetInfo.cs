@@ -1,7 +1,10 @@
-﻿namespace Neo.Plugins
+﻿using MongoDB.Bson;
+
+namespace Neo.Plugins
 {
     public class AssetInfo
     {
+        public ObjectId _id { get; set; }
         public string assetid { get; set; }
         public string totalsupply { get; set; }
         public string name { get; set; }
