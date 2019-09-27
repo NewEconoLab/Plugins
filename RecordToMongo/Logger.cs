@@ -278,9 +278,12 @@ namespace Neo.Plugins
             //先检查这个资产有没有存过
             var findStr = new JObject();
             findStr["assetid"] = assetHash.ToString();
-            var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
+            var ja = MongoDBHelper.Get<AssetInfo>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
             if (ja.Count > 0)
+            {
+                info = ja[0];
                 return;
+            }
             BigInteger _totalSupply = 0;
             string _name = "";
             string _symbol = "";
