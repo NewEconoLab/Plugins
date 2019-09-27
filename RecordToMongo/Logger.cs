@@ -195,6 +195,15 @@ namespace Neo.Plugins
                 return;
             BigInteger balance_to = 0;
             BigInteger balance_from = 0;
+            byte decimals = 0;
+            using (ScriptBuilder sb = new ScriptBuilder())
+            {
+                sb.EmitAppCall(_assetHash, "decimals");
+                using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
+                {
+                    decimals = (byte)engine.ResultStack.Pop().GetBigInteger();
+                }
+            }
             if (_from != null)
             {
                 using (ScriptBuilder sb = new ScriptBuilder())
@@ -207,7 +216,7 @@ namespace Neo.Plugins
                         balance_from = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _from.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
+                var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
                 //这个高度有可能已经记录过一次了
                 var findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
@@ -234,7 +243,7 @@ namespace Neo.Plugins
                         balance_to = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _to.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
+                var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
                 var findStr = new JObject();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
