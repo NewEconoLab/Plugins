@@ -195,15 +195,14 @@ namespace Neo.Plugins
                 return;
             BigInteger balance_to = 0;
             BigInteger balance_from = 0;
-            byte decimals = 0;
-            using (ScriptBuilder sb = new ScriptBuilder())
-            {
-                sb.EmitAppCall(_assetHash, "decimals");
-                using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
-                {
-                    decimals = (byte)engine.ResultStack.Pop().GetBigInteger();
-                }
-            }
+            string decimals = "0";
+            string symbol = "";
+            //读取这个资产的信息
+            var findStr = new JObject();
+            findStr["assetid"] = _assetHash.ToString();
+            var info = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
+            decimals = info[0]["decimals"].ToString();
+            symbol = info[0]["symbol"].ToString();
             if (_from != null)
             {
                 using (ScriptBuilder sb = new ScriptBuilder())
@@ -218,7 +217,7 @@ namespace Neo.Plugins
                 }
                 var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
                 //这个高度有可能已经记录过一次了
-                var findStr = new JObject();
+                findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
@@ -244,7 +243,7 @@ namespace Neo.Plugins
                     }
                 }
                 var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
-                var findStr = new JObject();
+                findStr = new JObject();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
