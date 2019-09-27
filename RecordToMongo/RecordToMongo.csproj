@@ -5,8 +5,13 @@
     <LangVersion>7.3</LangVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="neo-debug" Version="3.0.0" />
+    <PackageReference Include="NEL.Simple.SDK" Version="1.0.5" />
+    <PackageReference Include="Neo" Version="3.0.0-preview1" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
   </ItemGroup>
 
@@ -14,6 +19,10 @@
     <None Update="RecordToMongo\config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="needlib\" />
   </ItemGroup>
 
 </Project>

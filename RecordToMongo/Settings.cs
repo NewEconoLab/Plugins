@@ -17,6 +17,8 @@ namespace Neo.Plugins
         public string Coll_NEP5transfer { get; }
         public string Coll_Addr_Tx { get; }
         public string Coll_Addr { get; }
+        public string Coll_Block_SysFee { get; }
+        public string Coll_NEP5Asset { get; }
         public string[] MongoDbIndex { get; }
 
         public static Settings Default
@@ -36,6 +38,8 @@ namespace Neo.Plugins
             this.Coll_Nep5State = section.GetSection("Coll_Nep5State").Value;
             this.Coll_Addr_Tx = section.GetSection("Coll_Addr_Tx").Value;
             this.Coll_Addr = section.GetSection("Coll_Addr").Value;
+            this.Coll_Block_SysFee = section.GetSection("Coll_Block_SysFee").Value;
+            this.Coll_NEP5Asset = section.GetSection("Coll_NEP5Asset").Value;
             this.MongoDbIndex = section.GetSection("MongoDbIndexs").GetChildren().Select(p => p.Value).ToArray();
             if (!string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.DataBase))
             {
