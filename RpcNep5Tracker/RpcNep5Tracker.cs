@@ -186,11 +186,6 @@ namespace Neo.Plugins
         public void OnCommit(Snapshot snapshot)
         {
             _balances.Commit();
-            foreach (var k in _balances.dictionary.Keys)
-            {
-                Blockchain.Nep5State nep5State = new Blockchain.Nep5State() { Address = k.UserScriptHash, AssetHash = k.AssetScriptHash, Balance = _balances.TryGet(k)?.Balance ?? 0, LastUpdatedBlock = _balances.TryGet(k)?.LastUpdatedBlock ?? snapshot.Height };
-                RecordToMongo(nep5State);
-            }
             if (_shouldTrackHistory)
             {
                 _transfersSent.Commit();
