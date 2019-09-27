@@ -212,7 +212,6 @@ namespace Neo.Plugins
                 var findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
-                findStr["LastUpdatedBlock"] = _updatedBlock;
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
                 if (ja.Count > 0)
                 {
@@ -239,7 +238,6 @@ namespace Neo.Plugins
                 var findStr = new JObject();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
-                findStr["LastUpdatedBlock"] = _updatedBlock;
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
                 if (ja.Count > 0)
                 {
