@@ -162,20 +162,21 @@ namespace Neo.Plugins
                     if (array_value[0]["value"].AsString() == "5472616e73666572")
                     {
                         var bytes_from = array_value[1]["value"].AsString();
-                        var _from = bytes_from == "" ? "" : (new UInt160(Helper.HexToBytes(bytes_from))).ToAddress().ToString();
+                        var uint160_from = bytes_from == "" ? null : (new UInt160(Helper.HexToBytes(bytes_from)));
                         var bytes_to = array_value[2]["value"].AsString();
-                        var _to = bytes_to == "" ? "" : (new UInt160(Helper.HexToBytes(bytes_to))).ToAddress().ToString();
+                        var uint160_to = bytes_to == "" ? null : (new UInt160(Helper.HexToBytes(bytes_to)));
                         var _value = array_value[3]["value"].AsString();
                         JObject transfer = new JObject();
                         transfer["blockindex"] = _blockIndex;
                         transfer["n"] = n;
                         transfer["txid"] = appExec.Transaction?.Hash.ToString();
                         transfer["asset"] = q.ScriptHash.ToString();
-                        transfer["from"] = _from;
-                        transfer["to"] = _to;
+                        transfer["from"] = uint160_from == null ? "" : uint160_from.ToAddress().ToString();
+                        transfer["to"] = uint160_to == null ? "" : uint160_to.ToAddress().ToString();
                         transfer["value"] = _value;
-                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_NEP5transfer, BsonDocument.Parse(transfer.ToString()));
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
                         RecordAssetInfo(snapshot,q.ScriptHash);
+                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value));
                     }
                 }
                 catch (InvalidOperationException)
@@ -188,24 +189,54 @@ namespace Neo.Plugins
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
         }
 
-        /*
-        public void RecordNep5State(Blockchain.Nep5State nep5State)
+        public void RecordNep5StateRecordNep5State(Snapshot snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
                 return;
-            var data = new { Address = nep5State.Address.ToAddress(), AssetHash = nep5State.AssetHash.ToString(), LastUpdatedBlock = nep5State.LastUpdatedBlock, Balance = nep5State.Balance.ToString() };
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+            BigInteger balance_to = 0;
+            BigInteger balance_from = 0;
+            if (_from != null)
+            {
+                using (ScriptBuilder sb = new ScriptBuilder())
+                {
+                    sb.EmitAppCall(_assetHash, "balanceOf", _from);
+                    using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
+                    {
+                        if (engine.State.HasFlag(VMState.FAULT))
+                            throw new InvalidOperationException($"Execution for {_assetHash.ToString()}.balanceOf('{_from.ToString()}' fault");
+                        balance_from = engine.ResultStack.Pop().GetBigInteger();
+                    }
+                }
+                var data = new { Address = _from.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+            }
+            if (_to != null)
+            {
+                using (ScriptBuilder sb = new ScriptBuilder())
+                {
+                    sb.EmitAppCall(_assetHash, "balanceOf", _to);
+                    using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
+                    {
+                        if (engine.State.HasFlag(VMState.FAULT))
+                            throw new InvalidOperationException($"Execution for {_assetHash.ToString()}.balanceOf('{_to.ToString()}' fault");
+                        balance_to = engine.ResultStack.Pop().GetBigInteger();
+                    }
+                }
+                var data = new { Address = _to.ToAddress().ToString(), AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+            }
         }
-        */
 
         public void RecordBlockSysfee(uint _index)
         {
+            if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
+                return;
             if (_index == 0)
                 return;
             using (ApplicationEngine engine = NativeContract.GAS.TestCall("getSysFeeAmount", _index))
             {
                 var fee = engine.ResultStack.Peek().GetBigInteger().ToString();
-                if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
+                if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
                     return;
                 var data = new { index = _index,totalSysfee = fee};
                 MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee, data);
@@ -214,10 +245,12 @@ namespace Neo.Plugins
 
         public void RecordAssetInfo(Snapshot snapshot, UInt160 assetHash)
         {
+            if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5Asset))
+                return;
             //先检查这个资产有没有存过
             var findStr = new JObject();
             findStr["assetid"] = assetHash.ToString();
-            var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
+            var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
             if (ja.Count > 0)
                 return;
             BigInteger _totalSupply = 0;
@@ -256,8 +289,8 @@ namespace Neo.Plugins
                     _decimals = (uint)engine.ResultStack.Pop().GetBigInteger();
                 }
             }
-            var data = new { assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(),name = _name,symbol = _symbol ,decimals = _decimals };
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
+            var data = new { assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
+            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, data);
         }
     }
 
