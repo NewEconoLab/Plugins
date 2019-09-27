@@ -215,7 +215,7 @@ namespace Neo.Plugins
                         balance_from = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
+                var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals,AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
                 //这个高度有可能已经记录过一次了
                 findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
@@ -242,7 +242,7 @@ namespace Neo.Plugins
                         balance_to = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
+                var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
                 findStr = new JObject();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
