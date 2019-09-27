@@ -161,6 +161,9 @@ namespace Neo.Plugins
                     var array_value = (JArray)notification["state"]["value"];
                     if (array_value[0]["value"].AsString() == "5472616e73666572")
                     {
+                        var info = new AssetInfo();
+                        RecordAssetInfo(snapshot, q.ScriptHash ,out info);
+
                         var bytes_from = array_value[1]["value"].AsString();
                         var uint160_from = bytes_from == "" ? null : (new UInt160(Helper.HexToBytes(bytes_from)));
                         var bytes_to = array_value[2]["value"].AsString();
@@ -174,9 +177,10 @@ namespace Neo.Plugins
                         transfer["from"] = uint160_from == null ? "" : uint160_from.ToAddress().ToString();
                         transfer["to"] = uint160_to == null ? "" : uint160_to.ToAddress().ToString();
                         transfer["value"] = _value;
+                        transfer["decimals"] = info?.decimals;
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
-                        RecordAssetInfo(snapshot,q.ScriptHash);
-                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value));
+
+                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(),info?.symbol.ToString());
                     }
                 }
                 catch (InvalidOperationException)
@@ -189,20 +193,12 @@ namespace Neo.Plugins
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
         }
 
-        public void RecordNep5StateRecordNep5State(Snapshot snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount)
+        public void RecordNep5StateRecordNep5State(Snapshot snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
                 return;
             BigInteger balance_to = 0;
             BigInteger balance_from = 0;
-            string decimals = "0";
-            string symbol = "";
-            //读取这个资产的信息
-            var findStr = new JObject();
-            findStr["assetid"] = _assetHash.ToString();
-            var info = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
-            decimals = info[0]["decimals"].ToString();
-            symbol = info[0]["symbol"].ToString();
             if (_from != null)
             {
                 using (ScriptBuilder sb = new ScriptBuilder())
@@ -217,7 +213,7 @@ namespace Neo.Plugins
                 }
                 var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals,AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_from.ToString() };
                 //这个高度有可能已经记录过一次了
-                findStr = new JObject();
+                var findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
@@ -243,7 +239,7 @@ namespace Neo.Plugins
                     }
                 }
                 var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = balance_to.ToString() };
-                findStr = new JObject();
+                var findStr = new JObject();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
@@ -274,8 +270,9 @@ namespace Neo.Plugins
             }
         }
 
-        public void RecordAssetInfo(Snapshot snapshot, UInt160 assetHash)
+        public void RecordAssetInfo(Snapshot snapshot, UInt160 assetHash ,out AssetInfo info)
         {
+            info = null;
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5Asset))
                 return;
             //先检查这个资产有没有存过
@@ -320,39 +317,8 @@ namespace Neo.Plugins
                     _decimals = (uint)engine.ResultStack.Pop().GetBigInteger();
                 }
             }
-            var data = new { assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, data);
+            info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
+            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info);
         }
-    }
-
-    public class Address
-    {
-        public Address()
-        {
-            addr = string.Empty;
-            firstuse = new AddrUse();
-            lastuse = new AddrUse();
-            txcount = 0;
-        }
-
-        public ObjectId _id { get; set; }
-        public string addr { get; set; }
-        public AddrUse firstuse { get; set; }
-        public AddrUse lastuse { get; set; }
-        public int txcount { get; set; }
-    }
-
-    public class AddrUse
-    {
-        public AddrUse()
-        {
-            txid = string.Empty;
-            blockindex = 0;
-            blocktime = new DateTime();
-        }
-
-        public string txid { get; set; }
-        public uint blockindex { get; set; }
-        public DateTime blocktime { get; set; }
     }
 }
