@@ -179,8 +179,8 @@ namespace Neo.Plugins
                         transfer["value"] = _value;
                         transfer["decimals"] = info?.decimals;
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
-                        RecordAddress(uint160_from.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
-                        RecordAddress(uint160_to.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
+                        RecordAddress(uint160_from == null ? "" : uint160_from.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
+                        RecordAddress(uint160_to == null ? "" : uint160_to.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
                         RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(),info?.symbol.ToString());
                     }
                 }
