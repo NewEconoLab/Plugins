@@ -95,7 +95,7 @@ namespace Neo.Plugins
 
         public void RecordAddress(string _addr,string _txid,uint _index,ulong _blocktime)
         {
-            if (string.IsNullOrEmpty(Settings.Default.Coll_Addr))
+            if (string.IsNullOrEmpty(Settings.Default.Coll_Addr)|| string.IsNullOrEmpty(_addr))
                 return;
             //先获取这个地址的情况
             var findStr = new JObject();
@@ -179,8 +179,8 @@ namespace Neo.Plugins
                         transfer["value"] = _value;
                         transfer["decimals"] = info?.decimals;
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
-                        RecordAddress(transfer["from"].ToString(), transfer["txid"].ToString(), _blockIndex, _blockTimestamp);
-                        RecordAddress(transfer["to"].ToString(), transfer["txid"].ToString(), _blockIndex, _blockTimestamp);
+                        RecordAddress(uint160_from.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
+                        RecordAddress(uint160_to.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
                         RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(),info?.symbol.ToString());
                     }
                 }
