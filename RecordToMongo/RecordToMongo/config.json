@@ -20,6 +20,8 @@
       "{\"collName\": \"notify\",\"indexs\": [{\"indexName\": \"i_txid_unique\",\"indexDefinition\": {\"txid\": 1},\"isUnique\": true}]}",
       "{\"collName\": \"Nep5State\",\"indexs\": [{\"indexName\": \"i_Address_AssetHash_LastUpdatedBlock_unique\",\"indexDefinition\": {\"Address\": 1,\"AssetHash\":1,\"LastUpdatedBlock\":1},\"isUnique\": true}]}",
       "{\"collName\": \"Nep5State\",\"indexs\": [{\"indexName\": \"i_LastUpdatedBlock\",\"indexDefinition\": {\"LastUpdatedBlock\":1},\"isUnique\": false}]}",
+      "{\"collName\": \"Nep5State\",\"indexs\": [{\"indexName\": \"i_AssetHash\",\"indexDefinition\": {\"AssetHash\":1},\"isUnique\": false}]}",
+      "{\"collName\": \"Nep5State\",\"indexs\": [{\"indexName\": \"i_Balance\",\"indexDefinition\": {\"Balance\":1},\"isUnique\": false}]}",
       "{\"collName\": \"Nep5Transfer\",\"indexs\": [{\"indexName\": \"i_txid_n_unique\",\"indexDefinition\": {\"txid\":1,\"n\":1},\"isUnique\": true}]}",
       "{\"collName\": \"Nep5Transfer\",\"indexs\": [{\"indexName\": \"i_blockindex\",\"indexDefinition\": {\"blockindex\":1},\"isUnique\": false}]}",
       "{\"collName\": \"Nep5Transfer\",\"indexs\": [{\"indexName\": \"i_from\",\"indexDefinition\": {\"from\":1},\"isUnique\": false}]}",
