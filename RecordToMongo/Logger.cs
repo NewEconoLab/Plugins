@@ -29,7 +29,7 @@ namespace Neo.Plugins
             //存applicationlog
             foreach (var appExec in applicationExecutedList)
             {
-                RecordApplication(snapshot,appExec, snapshot.PersistingBlock.Index);
+                RecordApplication(snapshot,appExec, snapshot.PersistingBlock.Index,snapshot.PersistingBlock.Timestamp);
             }
         }
 
@@ -133,7 +133,7 @@ namespace Neo.Plugins
             MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
         }
 
-        public void RecordApplication(Snapshot snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex)
+        public void RecordApplication(Snapshot snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex,ulong _blockTimestamp)
         {
             if (appExec.Transaction == null)
                 return;
@@ -179,7 +179,8 @@ namespace Neo.Plugins
                         transfer["value"] = _value;
                         transfer["decimals"] = info?.decimals;
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
-
+                        RecordAddress(transfer["from"].ToString(), transfer["txid"].ToString(), _blockIndex, _blockTimestamp);
+                        RecordAddress(transfer["to"].ToString(), transfer["txid"].ToString(), _blockIndex, _blockTimestamp);
                         RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(),info?.symbol.ToString());
                     }
                 }
