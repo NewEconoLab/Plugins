@@ -15,16 +15,16 @@ using System.Numerics;
 
 namespace Neo.Plugins
 {
-    public class Logger : Plugin,IPersistencePlugin
+    public class Logger : Plugin, IPersistencePlugin
     {
         public override string Name => "RecordToMongo";
 
-        public override void Configure()
+        protected override void Configure()
         {
             Settings.Load(GetConfiguration());
         }
 
-        void IPersistencePlugin.OnPersist(Snapshot snapshot, IReadOnlyList<Blockchain.ApplicationExecuted> applicationExecutedList)
+        void IPersistencePlugin.OnPersist(StoreView snapshot, IReadOnlyList<Blockchain.ApplicationExecuted> applicationExecutedList)
         {
             //存applicationlog
             foreach (var appExec in applicationExecutedList)
@@ -33,27 +33,34 @@ namespace Neo.Plugins
             }
         }
 
-        void IPersistencePlugin.OnCommit(Snapshot snapshot)
+        void IPersistencePlugin.OnCommit(StoreView snapshot)
         {
-            var block = snapshot.PersistingBlock;
-
-            RecordBlock(block);
-
-            foreach (Network.P2P.Payloads.Transaction tx in block.Transactions)
+            try
             {
-                //记录交易信息
-                RecordTx(tx, block.Index, block.Timestamp);
-                //存入address_tx
-                for (var i = 0; i < tx.Cosigners.Length; i++)
-                {
-                    var addr = tx.Cosigners[i].Account.ToAddress().ToString();
-                    var blocktime = block.Timestamp;
-                    RecordAddressTx(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
-                    RecordAddress(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
-                }
-            }
+                var block = snapshot.PersistingBlock;
 
-            UpdateSystemCounter("block", block.Index);
+                RecordBlock(block);
+
+                foreach (Network.P2P.Payloads.Transaction tx in block.Transactions)
+                {
+                    //记录交易信息
+                    RecordTx(tx, block.Index, block.Timestamp);
+                    //存入address_tx
+                    for (var i = 0; i < tx.Cosigners.Length; i++)
+                    {
+                        var addr = tx.Cosigners[i].Account.ToAddress().ToString();
+                        var blocktime = block.Timestamp;
+                        RecordAddressTx(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
+                        RecordAddress(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
+                    }
+                }
+
+                UpdateSystemCounter("block", block.Index);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+            }
         }
 
         bool IPersistencePlugin.ShouldThrowExceptionFromCommit(Exception ex)
@@ -100,7 +107,7 @@ namespace Neo.Plugins
             //先获取这个地址的情况
             var findStr = new JObject();
             findStr["addr"] = _addr;
-            var data = MongoDBHelper.Get<Address>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr,findStr.ToString());
+            var data = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr,findStr.ToString());
             if (data.Count == 0) //如果是第一次使用那么更新firstuse和lastuse
             {
                 var addressInfo = new Address(){
@@ -109,14 +116,19 @@ namespace Neo.Plugins
                     lastuse = new AddrUse(){ txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime/1000)) },
                     txcount = 1
                 };
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, addressInfo);
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, BsonDocument.Parse(addressInfo.ToJson().ToString()));
             }
             else //不是第一次使用就更新lastuse 并且txcount++
             {
-                var addressInfo = data[0];
-                data[0].lastuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) };
-                data[0].txcount++;
-                MongoDBHelper.ReplaceData<Address>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), addressInfo);
+                var addressInfo = new Address()
+                {
+                    addr = _addr,
+                    firstuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) },
+                    lastuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) },
+                    txcount = (int)data[0]["txcount"] + 1
+                };
+                ;
+                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), BsonDocument.Parse(addressInfo.ToJson().ToString()));
             }
         }
 
@@ -133,7 +145,7 @@ namespace Neo.Plugins
             MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
         }
 
-        public void RecordApplication(Snapshot snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex,ulong _blockTimestamp)
+        public void RecordApplication(StoreView snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex,ulong _blockTimestamp)
         {
             if (appExec.Transaction == null)
                 return;
@@ -142,6 +154,7 @@ namespace Neo.Plugins
             json["txid"] = appExec.Transaction.Hash.ToString();
             json["trigger"] = appExec.Trigger;
             json["vmstate"] = appExec.VMState;
+            json["dumpinfo"] = appExec.DumpInfo == null ? "" : appExec.DumpInfo;
             json["gas_consumed"] = appExec.GasConsumed.ToString();
             try
             {
@@ -162,7 +175,7 @@ namespace Neo.Plugins
                     if (array_value[0]["value"].AsString() == "5472616e73666572")
                     {
                         var info = new AssetInfo();
-                        RecordAssetInfo(snapshot, q.ScriptHash ,out info);
+                        RecordAssetInfo(snapshot, q.ScriptHash, out info);
 
                         var bytes_from = array_value[1]["value"].AsString();
                         var uint160_from = bytes_from == "" ? null : (new UInt160(Helper.HexToBytes(bytes_from)));
@@ -181,7 +194,7 @@ namespace Neo.Plugins
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
                         RecordAddress(uint160_from == null ? "" : uint160_from.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
                         RecordAddress(uint160_to == null ? "" : uint160_to.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
-                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(),info?.symbol.ToString());
+                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(), info?.symbol.ToString());
                     }
                 }
                 catch (InvalidOperationException)
@@ -194,7 +207,7 @@ namespace Neo.Plugins
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
         }
 
-        public void RecordNep5StateRecordNep5State(Snapshot snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
+        public void RecordNep5StateRecordNep5State(StoreView snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
                 return;
@@ -266,12 +279,14 @@ namespace Neo.Plugins
                 var fee = engine.ResultStack.Peek().GetBigInteger().ToString();
                 if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
                     return;
-                var data = new { index = _index,totalSysfee = fee};
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee, data);
+                JObject json = new JObject();
+                json["index"] = _index;
+                json["totalSysfee"] = fee;
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee, BsonDocument.Parse(json.ToString()));
             }
         }
 
-        public void RecordAssetInfo(Snapshot snapshot, UInt160 assetHash ,out AssetInfo info)
+        public void RecordAssetInfo(StoreView snapshot, UInt160 assetHash ,out AssetInfo info)
         {
             info = null;
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5Asset))

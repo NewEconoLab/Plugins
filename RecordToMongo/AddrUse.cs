@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Neo.IO.Json;
+using System;
 
 namespace Neo.Plugins
 {
@@ -14,5 +15,14 @@ namespace Neo.Plugins
         public string txid { get; set; }
         public uint blockindex { get; set; }
         public DateTime blocktime { get; set; }
+
+        public JObject ToJson()
+        {
+            JObject jo = new JObject();
+            jo["txid"] = txid;
+            jo["blockindex"] = blockindex;
+            jo["blocktime"] = blocktime.ToString();
+            return jo;
+        }
     }
 }

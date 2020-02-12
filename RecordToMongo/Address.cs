@@ -1,4 +1,5 @@
 ﻿using MongoDB.Bson;
+using Neo.IO.Json;
 
 namespace Neo.Plugins
 {
@@ -17,5 +18,15 @@ namespace Neo.Plugins
         public AddrUse firstuse { get; set; }
         public AddrUse lastuse { get; set; }
         public int txcount { get; set; }
+
+        public JObject ToJson()
+        {
+            JObject jo = new JObject();
+            jo["addr"] = addr;
+            jo["firstuse"] = firstuse.ToJson();
+            jo["lastuse"] = lastuse.ToJson();
+            jo["txcount"] = txcount;
+            return jo;
+        }
     }
 }
