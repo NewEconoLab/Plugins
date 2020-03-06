@@ -19,12 +19,12 @@ namespace Neo.Plugins
         public AddrUse lastuse { get; set; }
         public int txcount { get; set; }
 
-        public JObject ToJson()
+        public BsonDocument ToBson()
         {
-            JObject jo = new JObject();
+            BsonDocument jo = new BsonDocument();
             jo["addr"] = addr;
-            jo["firstuse"] = firstuse.ToJson();
-            jo["lastuse"] = lastuse.ToJson();
+            jo["firstuse"] = firstuse.ToBson();
+            jo["lastuse"] = lastuse.ToBson();
             jo["txcount"] = txcount;
             return jo;
         }

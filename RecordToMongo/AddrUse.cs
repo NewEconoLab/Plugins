@@ -1,4 +1,5 @@
-﻿using Neo.IO.Json;
+﻿using MongoDB.Bson;
+using Neo.IO.Json;
 using System;
 
 namespace Neo.Plugins
@@ -16,9 +17,9 @@ namespace Neo.Plugins
         public uint blockindex { get; set; }
         public DateTime blocktime { get; set; }
 
-        public JObject ToJson()
+        public BsonDocument ToBson()
         {
-            JObject jo = new JObject();
+            BsonDocument jo = new BsonDocument();
             jo["txid"] = txid;
             jo["blockindex"] = blockindex;
             jo["blocktime"] = blocktime.ToString();

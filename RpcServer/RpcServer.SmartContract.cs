@@ -66,6 +66,14 @@ namespace Neo.Plugins
             {
                 json["stack"] = "error: recursive reference";
             }
+            try 
+            {
+                json["dumpInfo"] = engine.DumpInfo.SaveToString();
+            }
+            catch
+            {
+                json["dumpInfo"] = "";
+            }
             ProcessInvokeWithWallet(json);
             return json;
         }

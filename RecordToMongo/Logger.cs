@@ -92,12 +92,12 @@ namespace Neo.Plugins
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Addr_Tx))
                 return;
-            var addr_tx = new JObject();
+            var addr_tx = new BsonDocument();
             addr_tx["addr"] = addr;
             addr_tx["txid"] = txid;
             addr_tx["blockindex"] = index;
-            addr_tx["blocktime"] = blocktime;
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr_Tx, BsonDocument.Parse(addr_tx.ToString()));
+            addr_tx["blocktime"] = (Int32)blocktime;
+            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr_Tx, addr_tx);
         }
 
         public void RecordAddress(string _addr,string _txid,uint _index,ulong _blocktime)
@@ -116,7 +116,7 @@ namespace Neo.Plugins
                     lastuse = new AddrUse(){ txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime/1000)) },
                     txcount = 1
                 };
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, BsonDocument.Parse(addressInfo.ToJson().ToString()));
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, addressInfo.ToBson());
             }
             else //不是第一次使用就更新lastuse 并且txcount++
             {
@@ -128,7 +128,7 @@ namespace Neo.Plugins
                     txcount = (int)data[0]["txcount"] + 1
                 };
                 ;
-                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), BsonDocument.Parse(addressInfo.ToJson().ToString()));
+                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), addressInfo.ToBson());
             }
         }
 
@@ -137,12 +137,11 @@ namespace Neo.Plugins
             if (string.IsNullOrEmpty(Settings.Default.Coll_SystemCounter))
                 return;
             //更新systemcounter
-            var json = new JObject();
+            var json = new BsonDocument();
             json["counter"] = counterName;
             string whereFliter = json.ToString();
             json["lastBlockindex"] = index;
-            string replaceFliter = json.ToString();
-            MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, BsonDocument.Parse(replaceFliter));
+            MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, json);
         }
 
         public void RecordApplication(StoreView snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex,ulong _blockTimestamp)
@@ -168,19 +167,19 @@ namespace Neo.Plugins
             {
                 JObject notification = new JObject();
                 notification["contract"] = q.ScriptHash.ToString();
-                try
+                //try
                 {
                     notification["state"] = q.State.ToParameter().ToJson();
                     var array_value = (JArray)notification["state"]["value"];
-                    if (array_value[0]["value"].AsString() == "5472616e73666572")
+                    if (array_value[0]["value"].AsString() == "VHJhbnNmZXI=") //5472616e73666572  
                     {
                         var info = new AssetInfo();
                         RecordAssetInfo(snapshot, q.ScriptHash, out info);
 
-                        var bytes_from = array_value[1]["value"].AsString();
-                        var uint160_from = bytes_from == "" ? null : (new UInt160(Helper.HexToBytes(bytes_from)));
-                        var bytes_to = array_value[2]["value"].AsString();
-                        var uint160_to = bytes_to == "" ? null : (new UInt160(Helper.HexToBytes(bytes_to)));
+                        var bytes_from = array_value[1]["value"];
+                        var uint160_from = bytes_from == null ? null: (new UInt160(Convert.FromBase64String(bytes_from.AsString().Replace("\u002B","+"))));
+                        var bytes_to = array_value[2]["value"];
+                        var uint160_to = bytes_to == null ? null : (new UInt160(Convert.FromBase64String(bytes_to.AsString().Replace("\u002B", "+"))));
                         var _value = array_value[3]["value"].AsString();
                         JObject transfer = new JObject();
                         transfer["blockindex"] = _blockIndex;
@@ -197,10 +196,11 @@ namespace Neo.Plugins
                         RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(), info?.symbol.ToString());
                     }
                 }
-                catch (InvalidOperationException)
-                {
-                    notification["state"] = "error: recursive reference";
-                }
+                //catch (Exception e)
+                //{
+                //    Console.WriteLine(e);
+                //    notification["state"] = "error: recursive reference";
+                //}
                 return notification;
             }).ToArray();
             //增加applicationLog输入到数据库
@@ -225,7 +225,13 @@ namespace Neo.Plugins
                         balance_from = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _from.ToAddress().ToString(),AssetDecimals = decimals,AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = BsonDecimal128.Create(balance_from.ToString()) };
+                var data = new BsonDocument();
+                data["Address"] = _from.ToAddress().ToString();
+                data["AssetDecimals"] = decimals;
+                data["AssetSymbol"] = symbol;
+                data["AssetHash"] = _assetHash.ToString();
+                data["LastUpdatedBlock"] = _updatedBlock;
+                data["Balance"] = BsonDecimal128.Create(balance_from.ToString());
                 //这个高度有可能已经记录过一次了
                 var findStr = new JObject();
                 findStr["Address"] = _from.ToAddress().ToString();
@@ -252,8 +258,14 @@ namespace Neo.Plugins
                         balance_to = engine.ResultStack.Pop().GetBigInteger();
                     }
                 }
-                var data = new { Address = _to.ToAddress().ToString(), AssetDecimals = decimals, AssetSymbol = symbol, AssetHash = _assetHash.ToString(), LastUpdatedBlock = _updatedBlock, Balance = BsonDecimal128.Create(balance_to.ToString()) };
-                var findStr = new JObject();
+                var data = new BsonDocument();
+                data["Address"] = _to.ToAddress().ToString();
+                data["AssetDecimals"] = decimals;
+                data["AssetSymbol"] = symbol;
+                data["AssetHash"] = _assetHash.ToString();
+                data["LastUpdatedBlock"] = _updatedBlock;
+                data["Balance"] = BsonDecimal128.Create(balance_to.ToString());
+                var findStr = new BsonDocument();
                 findStr["Address"] = _to.ToAddress().ToString();
                 findStr["AssetHash"] = _assetHash.ToString();
                 var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, findStr.ToString());
@@ -279,10 +291,10 @@ namespace Neo.Plugins
                 var fee = engine.ResultStack.Peek().GetBigInteger().ToString();
                 if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
                     return;
-                JObject json = new JObject();
+                BsonDocument json = new BsonDocument();
                 json["index"] = _index;
                 json["totalSysfee"] = fee;
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee, BsonDocument.Parse(json.ToString()));
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee,json);
             }
         }
 
@@ -292,12 +304,19 @@ namespace Neo.Plugins
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5Asset))
                 return;
             //先检查这个资产有没有存过
-            var findStr = new JObject();
+            var findStr = new BsonDocument();
             findStr["assetid"] = assetHash.ToString();
-            var ja = MongoDBHelper.Get<AssetInfo>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
+            var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
             if (ja.Count > 0)
             {
-                info = ja[0];
+                info = new AssetInfo()
+                {
+                    assetid = ja[0]["assetid"].ToString(),
+                    totalsupply = ja[0]["totalsupply"].ToString(),
+                    name = ja[0]["name"].ToString(),
+                    symbol = ja[0]["symbol"].ToString(),
+                    decimals =(uint)ja[0]["decimals"]
+                };
                 return;
             }
             BigInteger _totalSupply = 0;
@@ -337,7 +356,7 @@ namespace Neo.Plugins
                 }
             }
             info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info);
+            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info.ToBson());
         }
     }
 }
