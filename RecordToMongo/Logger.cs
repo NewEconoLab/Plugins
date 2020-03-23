@@ -12,6 +12,11 @@ using Neo.SmartContract;
 using Neo.SmartContract.Native;
 using System.Collections.Generic;
 using System.Numerics;
+using System.IO;
+using System.Text;
+using Neo.Cryptography;
+using System.Security.Cryptography;
+using System.Diagnostics.Contracts;
 
 namespace Neo.Plugins
 {
@@ -153,7 +158,15 @@ namespace Neo.Plugins
             json["txid"] = appExec.Transaction.Hash.ToString();
             json["trigger"] = appExec.Trigger;
             json["vmstate"] = appExec.VMState;
-            json["dumpinfo"] = appExec.DumpInfo == null ? "" : appExec.DumpInfo;
+            if (appExec.DumpInfo != null)
+            {
+                json["dumpinfo"] = appExec.DumpInfo;
+                RecordExecDetail(appExec.Transaction.Sender,appExec.Transaction.Hash.ToString(), _blockIndex, _blockTimestamp, appExec.DumpInfo);
+            }
+            else
+            {
+                json["dumpinfo"] = "";
+            }
             json["gas_consumed"] = appExec.GasConsumed.ToString();
             try
             {
@@ -358,5 +371,98 @@ namespace Neo.Plugins
             info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info.ToBson());
         }
+
+        public void RecordExecDetail(UInt160 sender,string txid,uint blockIndex, ulong blockTimestamp, string dumpinfo)
+        {
+            byte[] bts = dumpinfo.HexToBytes();
+            using (MemoryStream ms = new MemoryStream(bts))
+            {
+                var outms = llvm.QuickFile.FromFile(ms);
+                var text = Encoding.UTF8.GetString(outms.ToArray());
+                var json = JObject.Parse(text);
+                if (json["VMState"] == null || json["script"]== null)
+                    return;
+                List<string> froms = new List<string>();
+                froms.Add(sender.ToString());
+                uint index = 0;
+                uint level = 0;
+                execOps(json["script"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender.ToString());
+            }
+        }
+
+        void execOps(JArray ops, string txid, uint blockIndex, ulong blockTimestamp, List<string> froms, ref uint index, ref uint level, string sender)
+        {
+            for (var n = 0; n < ops.Count; n++)
+            {
+                var op = ops[n];
+                if (op["op"].AsString() == "SYSCALL"
+                    && op["param"] != null 
+                    && (InteropService.Contract.Call.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()) || InteropService.Contract.CallEx.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes())))
+                {
+                    if (op["subscript"] != null)
+                    {
+                        var to = op["subscript"]["hash"].AsString();
+                        var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
+                        InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = to, type = InvokeType.Call, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                        index++;
+                        level++;
+                        froms.Add(to);
+                        execOps(op["subscript"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender);
+                    }
+                    else
+                    {
+                        index++;
+                        level++;
+                    }
+                }
+                else if (op["op"].AsString() == "CALL" || op["op"].AsString() == "CALL_L" || op["op"].AsString() == "CALLA")
+                {
+                    froms.Add(froms[(int)level]);
+                    level++;
+                }
+                else if (op["op"].AsString() == "RET")
+                {
+                    if (level == 0)
+                        return;
+                    froms.RemoveAt((int)level);
+                    level--;
+                }
+                else if (op["op"].AsString() == "SYSCALL"
+                    && op["param"] != null
+                    && InteropService.Contract.Create.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                {
+                    var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteArray"].AsString();
+                    var bytes_data = data.HexToBytes();
+                    UInt160 scriptHash = new UInt160(bytes_data.Sha256().RIPEMD160());
+                    var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
+                    InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Create, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    index++;
+                }
+                else if (op["op"].AsString() == "SYSCALL"
+                    && op["param"] != null
+                    && InteropService.Contract.Update.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                {
+                    var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteArray"].AsString();
+                    var bytes_data = data.HexToBytes();
+                    var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
+                    UInt160 scriptHash =new UInt160(bytes_data.Sha256().RIPEMD160());
+                    InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Update, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    index++;
+                }
+                else if (op["op"].AsString() == "SYSCALL"
+                    && op["param"] != null
+                    && InteropService.Contract.Destroy.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                {
+                    var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
+                    InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = "", type = InvokeType.Destroy, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    index++;
+                }
+            }
+        }
+
     }
 }

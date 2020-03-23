@@ -12,6 +12,7 @@
     "Coll_Addr": "address",
     "Coll_Block_SysFee": "block_sysfee",
     "Coll_Nep5Asset": "Nep5AssetInfo",
+    "Coll_Contract_Exec_Detail": "contract_exec_detail",
     "MongoDbIndexs": [
       "{\"collName\": \"block\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\": 1},\"isUnique\": true}]}",
       "{\"collName\": \"tx\",\"indexs\": [{\"indexName\": \"i_txid_unique\",\"indexDefinition\": {\"txid\": 1},\"isUnique\": true}]}",
@@ -33,7 +34,9 @@
       "{\"collName\": \"address_tx\",\"indexs\": [{\"indexName\": \"i_blockindex\",\"indexDefinition\": {\"blockindex\":1},\"isUnique\": false}]}",
       "{\"collName\": \"address\",\"indexs\": [{\"indexName\": \"i_addr_unique\",\"indexDefinition\": {\"addr\":1},\"isUnique\": true}]}",
       "{\"collName\": \"block_sysfee\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\":1},\"isUnique\": true}]}",
-      "{\"collName\": \"Nep5AssetInfo\",\"indexs\": [{\"indexName\": \"i_assetid_unique\",\"indexDefinition\": {\"assetid\":1},\"isUnique\": true}]}"
+      "{\"collName\": \"Nep5AssetInfo\",\"indexs\": [{\"indexName\": \"i_assetid_unique\",\"indexDefinition\": {\"assetid\":1},\"isUnique\": true}]}",
+      "{\"collName\": \"contract_exec_detail\",\"indexs\": [{\"indexName\": \"i_level\",\"indexDefinition\": {\"level\":1},\"isUnique\": false}]}",
+      "{\"collName\": \"contract_exec_detail\",\"indexs\": [{\"indexName\": \"i_txid_index_unique\",\"indexDefinition\": {\"txid\":1,\"index\":1},\"isUnique\": true}]}"
     ]
   }
 }
