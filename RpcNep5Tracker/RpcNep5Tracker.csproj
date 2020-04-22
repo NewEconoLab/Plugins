@@ -5,9 +5,6 @@
     <RootNamespace>Neo.Plugins</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="neo-debug" Version="3.0.0.2" />
-  </ItemGroup>
-  <ItemGroup>
     <None Update="RpcNep5Tracker\config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>

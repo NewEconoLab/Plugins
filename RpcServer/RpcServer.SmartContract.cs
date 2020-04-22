@@ -53,7 +53,7 @@ namespace Neo.Plugins
 
         private JObject GetInvokeResult(byte[] script, IVerifiable checkWitnessHashes = null)
         {
-            using ApplicationEngine engine = ApplicationEngine.Run(script, checkWitnessHashes, extraGAS: Settings.Default.MaxGasInvoke);
+            using ApplicationEngine engine = ApplicationEngine.Run(script, checkWitnessHashes, extraGAS: settings.MaxGasInvoke);
             JObject json = new JObject();
             json["script"] = script.ToHexString();
             json["state"] = engine.State;
@@ -66,14 +66,6 @@ namespace Neo.Plugins
             {
                 json["stack"] = "error: recursive reference";
             }
-            try 
-            {
-                json["dumpInfo"] = engine.DumpInfo.SaveToString();
-            }
-            catch
-            {
-                json["dumpInfo"] = "";
-            }
             ProcessInvokeWithWallet(json);
             return json;
         }
@@ -84,24 +76,20 @@ namespace Neo.Plugins
             UInt160 script_hash = UInt160.Parse(_params[0].AsString());
             string operation = _params[1].AsString();
             ContractParameter[] args = _params.Count >= 3 ? ((JArray)_params[2]).Select(p => ContractParameter.FromJson(p)).ToArray() : new ContractParameter[0];
+            CheckWitnessHashes checkWitnessHashes = _params.Count >= 4 ? new CheckWitnessHashes(((JArray)_params[3]).Select(u => UInt160.Parse(u.AsString())).ToArray()) : null;
             byte[] script;
             using (ScriptBuilder sb = new ScriptBuilder())
             {
                 script = sb.EmitAppCall(script_hash, operation, args).ToArray();
             }
-            return GetInvokeResult(script);
+            return GetInvokeResult(script, checkWitnessHashes);
         }
 
         [RpcMethod]
         private JObject InvokeScript(JArray _params)
         {
             byte[] script = _params[0].AsString().HexToBytes();
-            CheckWitnessHashes checkWitnessHashes = null;
-            if (_params.Count > 1)
-            {
-                UInt160[] scriptHashesForVerifying = _params.Skip(1).Select(u => UInt160.Parse(u.AsString())).ToArray();
-                checkWitnessHashes = new CheckWitnessHashes(scriptHashesForVerifying);
-            }
+            CheckWitnessHashes checkWitnessHashes = _params.Count >= 2 ? new CheckWitnessHashes(((JArray)_params[1]).Select(u => UInt160.Parse(u.AsString())).ToArray()) : null;
             return GetInvokeResult(script, checkWitnessHashes);
         }
     }

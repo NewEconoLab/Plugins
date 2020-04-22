@@ -21,7 +21,7 @@ namespace Neo.Plugins
         public LogReader()
         {
             db = DB.Open(GetFullPath(Settings.Default.Path), new Options { CreateIfMissing = true });
-            RpcServer.RegisterMethods(this);
+            RpcServerPlugin.RegisterMethods(this);
         }
 
         protected override void Configure()
@@ -50,7 +50,6 @@ namespace Neo.Plugins
                 json["trigger"] = appExec.Trigger;
                 json["vmstate"] = appExec.VMState;
                 json["gas_consumed"] = appExec.GasConsumed.ToString();
-                json["dumpinfo"] = appExec.DumpInfo;
                 try
                 {
                     json["stack"] = appExec.Stack.Select(q => q.ToParameter().ToJson()).ToArray();
