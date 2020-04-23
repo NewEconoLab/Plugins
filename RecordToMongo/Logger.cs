@@ -79,7 +79,6 @@ namespace Neo.Plugins
                 return;
             //存入block
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block, BsonDocument.Parse(block.ToJson().ToString()));
-            RecordBlockSysfee(block.Index);
         }
 
         public void RecordTx(Network.P2P.Payloads.Transaction tx,uint index,ulong timestamp)
@@ -290,24 +289,6 @@ namespace Neo.Plugins
                 {
                     MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5State, data);
                 }
-            }
-        }
-
-        public void RecordBlockSysfee(uint _index)
-        {
-            if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
-                return;
-            if (_index == 0)
-                return;
-            using (ApplicationEngine engine = NativeContract.GAS.TestCall("getSysFeeAmount", _index))
-            {
-                var fee = engine.ResultStack.Peek().GetBigInteger().ToString();
-                if (string.IsNullOrEmpty(Settings.Default.Coll_Block_SysFee))
-                    return;
-                BsonDocument json = new BsonDocument();
-                json["index"] = _index;
-                json["totalSysfee"] = fee;
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Block_SysFee,json);
             }
         }
 
