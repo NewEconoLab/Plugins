@@ -100,7 +100,7 @@ namespace Neo.Plugins
             addr_tx["addr"] = addr;
             addr_tx["txid"] = txid;
             addr_tx["blockindex"] = index;
-            addr_tx["blocktime"] = (Int64)blocktime;
+            addr_tx["blocktime"] = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt64)(blocktime / 1000));
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr_Tx, addr_tx);
         }
 
