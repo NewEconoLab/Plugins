@@ -1,8 +1,8 @@
-﻿using MongoDB.Bson;
-using Neo.IO.Json;
+﻿using MongoDB.Bson.Serialization.Attributes;
 
 namespace Neo.Plugins
 {
+    [BsonIgnoreExtraElements]
     public class AssetInfo
     {
         public string assetid { get; set; }
@@ -10,16 +10,5 @@ namespace Neo.Plugins
         public string name { get; set; }
         public string symbol { get; set; }
         public uint decimals { get; set; }
-
-        public BsonDocument ToBson()
-        {
-            BsonDocument jo = new BsonDocument();
-            jo["assetid"] = assetid;
-            jo["totalsupply"] = totalsupply;
-            jo["name"] = name;
-            jo["symbol"] = symbol;
-            jo["decimals"] = decimals;
-            return jo;
-        }
     }
 }

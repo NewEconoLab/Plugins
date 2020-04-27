@@ -1,9 +1,9 @@
-﻿using MongoDB.Bson;
-using Neo.IO.Json;
+﻿using MongoDB.Bson.Serialization.Attributes;
 using System;
 
 namespace Neo.Plugins
 {
+    [BsonIgnoreExtraElements]
     public class AddrUse
     {
         public AddrUse()
@@ -16,14 +16,5 @@ namespace Neo.Plugins
         public string txid { get; set; }
         public uint blockindex { get; set; }
         public DateTime blocktime { get; set; }
-
-        public BsonDocument ToBson()
-        {
-            BsonDocument jo = new BsonDocument();
-            jo["txid"] = txid;
-            jo["blockindex"] = blockindex;
-            jo["blocktime"] = blocktime.ToString();
-            return jo;
-        }
     }
 }

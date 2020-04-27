@@ -1,10 +1,8 @@
-﻿using MongoDB.Bson;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using MongoDB.Bson.Serialization.Attributes;
 
 namespace Neo.Plugins
 {
+    [BsonIgnoreExtraElements]
     public class InvokeInfo
     {
         public InvokeType type;
@@ -15,20 +13,6 @@ namespace Neo.Plugins
         public uint index;
         public uint blockIndex;
         public ulong blockTimestamp;
-
-        public BsonDocument ToBson()
-        {
-            BsonDocument jo = new BsonDocument();
-            jo["type"] = (int)type;
-            jo["txid"] = txid;
-            jo["from"] = from;
-            jo["to"] = to;
-            jo["level"] = level;
-            jo["index"] = index;
-            jo["blockIndex"] = blockIndex;
-            jo["blockTimestamp"] = (long)blockTimestamp;
-            return jo;
-        }
     }
     public enum InvokeType
     {

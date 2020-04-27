@@ -100,7 +100,7 @@ namespace Neo.Plugins
             addr_tx["addr"] = addr;
             addr_tx["txid"] = txid;
             addr_tx["blockindex"] = index;
-            addr_tx["blocktime"] = (Int32)blocktime;
+            addr_tx["blocktime"] = (Int64)blocktime;
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr_Tx, addr_tx);
         }
 
@@ -111,7 +111,7 @@ namespace Neo.Plugins
             //先获取这个地址的情况
             var findStr = new JObject();
             findStr["addr"] = _addr;
-            var data = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr,findStr.ToString());
+            var data = MongoDBHelper.Get<Address>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr,findStr.ToString());
             if (data.Count == 0) //如果是第一次使用那么更新firstuse和lastuse
             {
                 var addressInfo = new Address(){
@@ -120,23 +120,16 @@ namespace Neo.Plugins
                     lastuse = new AddrUse(){ txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime/1000)) },
                     txcount = 1
                 };
-                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, addressInfo.ToBson());
+                MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, addressInfo);
             }
             else //不是第一次使用就更新lastuse 并且txcount++
             {
-                var addressInfo = new Address()
-                {
-                    addr = _addr,
-                    firstuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) },
-                    lastuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) },
-                    txcount = (int)data[0]["txcount"] + 1
-                };
-                ;
-                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), addressInfo.ToBson());
+                data[0].lastuse = new AddrUse() { txid = _txid, blockindex = _index, blocktime = TimeZoneInfo.ConvertTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc), TimeZoneInfo.Local).AddSeconds((UInt32)(_blocktime / 1000)) };
+                data[0].txcount= (int)data[0].txcount + 1;
+                MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Addr, findStr.ToString(), data[0]);
             }
         }
-
-        public void UpdateSystemCounter(string counterName,uint index)
+        public void UpdateSystemCounter(string counterName, uint index)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_SystemCounter))
                 return;
@@ -147,7 +140,6 @@ namespace Neo.Plugins
             json["lastBlockindex"] = index;
             MongoDBHelper.ReplaceData(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_SystemCounter, whereFliter, json);
         }
-
         public void RecordApplication(StoreView snapshot,Blockchain.ApplicationExecuted appExec,uint _blockIndex,ulong _blockTimestamp)
         {
             if (appExec.Transaction == null)
@@ -205,21 +197,16 @@ namespace Neo.Plugins
                         MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Transfer, BsonDocument.Parse(transfer.ToString()));
                         RecordAddress(uint160_from == null ? "" : uint160_from.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
                         RecordAddress(uint160_to == null ? "" : uint160_to.ToAddress().ToString(), appExec.Transaction?.Hash.ToString(), _blockIndex, _blockTimestamp);
-                        RecordNep5StateRecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(), info?.symbol.ToString());
+                        RecordNep5State(snapshot, q.ScriptHash, _blockIndex, uint160_from, uint160_to, BigInteger.Parse(_value), info?.decimals.ToString(), info?.symbol.ToString());
                     }
                 }
-                //catch (Exception e)
-                //{
-                //    Console.WriteLine(e);
-                //    notification["state"] = "error: recursive reference";
-                //}
                 return notification;
             }).ToArray();
             //增加applicationLog输入到数据库
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
         }
 
-        public void RecordNep5StateRecordNep5State(StoreView snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
+        public void RecordNep5State(StoreView snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
                 return;
@@ -300,17 +287,10 @@ namespace Neo.Plugins
             //先检查这个资产有没有存过
             var findStr = new BsonDocument();
             findStr["assetid"] = assetHash.ToString();
-            var ja = MongoDBHelper.Get(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
+            var ja = MongoDBHelper.Get<AssetInfo>(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, findStr.ToString());
             if (ja.Count > 0)
             {
-                info = new AssetInfo()
-                {
-                    assetid = ja[0]["assetid"].ToString(),
-                    totalsupply = ja[0]["totalsupply"].ToString(),
-                    name = ja[0]["name"].ToString(),
-                    symbol = ja[0]["symbol"].ToString(),
-                    decimals =(uint)ja[0]["decimals"]
-                };
+                info = ja[0];
                 return;
             }
             BigInteger _totalSupply = 0;
@@ -350,7 +330,7 @@ namespace Neo.Plugins
                 }
             }
             info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
-            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info.ToBson());
+            MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info);
         }
 
         public void RecordExecDetail(UInt160 sender,string txid,uint blockIndex, ulong blockTimestamp, string dumpinfo)
@@ -385,7 +365,7 @@ namespace Neo.Plugins
                         var to = op["subscript"]["hash"].AsString();
                         var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                         InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = to, type = InvokeType.Call, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
-                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
                         index++;
                         level++;
                         froms.Add(to);
@@ -418,7 +398,7 @@ namespace Neo.Plugins
                     UInt160 scriptHash = new UInt160(bytes_data.Sha256().RIPEMD160());
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Create, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
                     index++;
                 }
                 else if (op["op"].AsString() == "SYSCALL"
@@ -430,7 +410,7 @@ namespace Neo.Plugins
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     UInt160 scriptHash =new UInt160(bytes_data.Sha256().RIPEMD160());
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Update, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
                     index++;
                 }
                 else if (op["op"].AsString() == "SYSCALL"
@@ -439,7 +419,7 @@ namespace Neo.Plugins
                 {
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = "", type = InvokeType.Destroy, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info.ToBson());
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
                     index++;
                 }
             }
