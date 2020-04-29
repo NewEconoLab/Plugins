@@ -393,9 +393,17 @@ namespace Neo.Plugins
                     && op["param"] != null
                     && InteropService.Contract.Create.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
                 {
-                    var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteArray"].AsString();
-                    var bytes_data = data.HexToBytes();
-                    UInt160 scriptHash = new UInt160(bytes_data.Sha256().RIPEMD160());
+                    UInt160 scriptHash = UInt160.Zero;
+                    try
+                    {
+                        string data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteString"].AsString();
+                        var bytes_data = data.HexToBytes();
+                        scriptHash = new UInt160(bytes_data.Sha256().RIPEMD160());
+                    }
+                    catch
+                    {
+                        
+                    }
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Create, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
                     MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
@@ -405,7 +413,7 @@ namespace Neo.Plugins
                     && op["param"] != null
                     && InteropService.Contract.Update.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
                 {
-                    var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteArray"].AsString();
+                    var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteString"].AsString();
                     var bytes_data = data.HexToBytes();
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     UInt160 scriptHash =new UInt160(bytes_data.Sha256().RIPEMD160());
