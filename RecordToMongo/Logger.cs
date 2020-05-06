@@ -184,7 +184,11 @@ namespace Neo.Plugins
                         var uint160_from = bytes_from == null ? null: (new UInt160(Convert.FromBase64String(bytes_from.AsString().Replace("\u002B","+"))));
                         var bytes_to = array_value[2]["value"];
                         var uint160_to = bytes_to == null ? null : (new UInt160(Convert.FromBase64String(bytes_to.AsString().Replace("\u002B", "+"))));
-                        var _value = array_value[3]["value"].AsString();
+                        var _value = "";
+                        if (array_value[3]["type"].AsString() == "Integer")
+                            _value = array_value[3]["value"].AsString();
+                        else
+                            _value =new BigInteger(Convert.FromBase64String(array_value[3]["value"].AsString())).ToString();
                         JObject transfer = new JObject();
                         transfer["blockindex"] = _blockIndex;
                         transfer["n"] = n;
