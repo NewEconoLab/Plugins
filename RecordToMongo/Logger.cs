@@ -51,9 +51,9 @@ namespace Neo.Plugins
                     //记录交易信息
                     RecordTx(tx, block.Index, block.Timestamp);
                     //存入address_tx
-                    for (var i = 0; i < tx.Cosigners.Length; i++)
+                    for (var i = 0; i < tx.Signers.Length; i++)
                     {
-                        var addr = tx.Cosigners[i].Account.ToAddress().ToString();
+                        var addr = tx.Signers[i].Account.ToAddress().ToString();
                         var blocktime = block.Timestamp;
                         RecordAddressTx(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
                         RecordAddress(addr, tx.Hash.ToString(), block.Index, block.Timestamp);
@@ -152,7 +152,7 @@ namespace Neo.Plugins
             if (appExec.DumpInfo != null)
             {
                 json["dumpinfo"] = appExec.DumpInfo;
-                RecordExecDetail(appExec.Transaction.Sender,appExec.Transaction.Hash.ToString(), _blockIndex, _blockTimestamp, appExec.DumpInfo);
+                RecordExecDetail(appExec.Transaction.Sender, appExec.Transaction.Hash.ToString(), _blockIndex, _blockTimestamp, appExec.DumpInfo);
             }
             else
             {
@@ -171,22 +171,23 @@ namespace Neo.Plugins
             {
                 JObject notification = new JObject();
                 notification["contract"] = q.ScriptHash.ToString();
+                notification["eventName"] = q.EventName;
                 //try
                 {
                     notification["state"] = q.State.ToParameter().ToJson();
                     var array_value = (JArray)notification["state"]["value"];
-                    if (array_value[0]["value"].AsString() == "VHJhbnNmZXI=") //5472616e73666572  
+                    if (q.EventName == "Transfer")
                     {
                         var info = new AssetInfo();
                         RecordAssetInfo(snapshot, q.ScriptHash, out info);
 
-                        var bytes_from = array_value[1]["value"];
+                        var bytes_from = array_value[0]["value"];
                         var uint160_from = bytes_from == null ? null: (new UInt160(Convert.FromBase64String(bytes_from.AsString().Replace("\u002B","+"))));
-                        var bytes_to = array_value[2]["value"];
+                        var bytes_to = array_value[1]["value"];
                         var uint160_to = bytes_to == null ? null : (new UInt160(Convert.FromBase64String(bytes_to.AsString().Replace("\u002B", "+"))));
                         var _value = "";
-                        if (array_value[3]["type"].AsString() == "Integer")
-                            _value = array_value[3]["value"].AsString();
+                        if (array_value[2]["type"].AsString() == "Integer")
+                            _value = array_value[2]["value"].AsString();
                         else
                             _value =new BigInteger(Convert.FromBase64String(array_value[3]["value"].AsString())).ToString();
                         JObject transfer = new JObject();
@@ -225,7 +226,7 @@ namespace Neo.Plugins
                     {
                         if (engine.State.HasFlag(VMState.FAULT))
                             throw new InvalidOperationException($"Execution for {_assetHash.ToString()}.balanceOf('{_from.ToString()}' fault");
-                        balance_from = engine.ResultStack.Pop().GetBigInteger();
+                        balance_from = engine.ResultStack.Pop().GetInteger();
                     }
                 }
                 var data = new BsonDocument();
@@ -258,7 +259,7 @@ namespace Neo.Plugins
                     {
                         if (engine.State.HasFlag(VMState.FAULT))
                             throw new InvalidOperationException($"Execution for {_assetHash.ToString()}.balanceOf('{_to.ToString()}' fault");
-                        balance_to = engine.ResultStack.Pop().GetBigInteger();
+                        balance_to = engine.ResultStack.Pop().GetInteger();
                     }
                 }
                 var data = new BsonDocument();
@@ -322,7 +323,7 @@ namespace Neo.Plugins
                 sb.EmitAppCall(assetHash, "totalSupply");
                 using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
                 {
-                    _totalSupply = engine.ResultStack.Pop().GetBigInteger();
+                    _totalSupply = engine.ResultStack.Pop().GetInteger();
                 }
             }
             using (ScriptBuilder sb = new ScriptBuilder())
@@ -330,7 +331,7 @@ namespace Neo.Plugins
                 sb.EmitAppCall(assetHash, "decimals");
                 using (ApplicationEngine engine = ApplicationEngine.Run(sb.ToArray(), snapshot, testMode: true))
                 {
-                    _decimals = (uint)engine.ResultStack.Pop().GetBigInteger();
+                    _decimals = (uint)engine.ResultStack.Pop().GetInteger();
                 }
             }
             info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
@@ -354,7 +355,7 @@ namespace Neo.Plugins
                 execOps(json["script"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender.ToString());
             }
         }
-
+        
         void execOps(JArray ops, string txid, uint blockIndex, ulong blockTimestamp, List<string> froms, ref uint index, ref uint level, string sender)
         {
             for (var n = 0; n < ops.Count; n++)
@@ -362,7 +363,7 @@ namespace Neo.Plugins
                 var op = ops[n];
                 if (op["op"].AsString() == "SYSCALL"
                     && op["param"] != null 
-                    && (InteropService.Contract.Call.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()) || InteropService.Contract.CallEx.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes())))
+                    && (ApplicationEngine.System_Contract_Call.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()) || ApplicationEngine.System_Contract_CallEx.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes())))
                 {
                     if (op["subscript"] != null)
                     {
@@ -395,7 +396,7 @@ namespace Neo.Plugins
                 }
                 else if (op["op"].AsString() == "SYSCALL"
                     && op["param"] != null
-                    && InteropService.Contract.Create.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                    && ApplicationEngine.System_Contract_Create.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
                 {
                     UInt160 scriptHash = UInt160.Zero;
                     try
@@ -415,7 +416,7 @@ namespace Neo.Plugins
                 }
                 else if (op["op"].AsString() == "SYSCALL"
                     && op["param"] != null
-                    && InteropService.Contract.Update.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                    && ApplicationEngine.System_Contract_Update.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
                 {
                     var data = JObject.Parse(ops[n - 1]["result"].AsString())["ByteString"].AsString();
                     var bytes_data = data.HexToBytes();
@@ -427,7 +428,7 @@ namespace Neo.Plugins
                 }
                 else if (op["op"].AsString() == "SYSCALL"
                     && op["param"] != null
-                    && InteropService.Contract.Destroy.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
+                    && ApplicationEngine.System_Contract_Destroy.Hash == BitConverter.ToUInt32(op["param"].AsString().HexToBytes()))
                 {
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = "", type = InvokeType.Destroy, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
@@ -436,6 +437,5 @@ namespace Neo.Plugins
                 }
             }
         }
-
     }
 }

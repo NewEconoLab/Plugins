@@ -1,5 +1,6 @@
 using Neo.IO.Json;
-using Neo.SmartContract;
+using Neo.VM;
+using Neo.VM.Types;
 using System;
 using System.Linq;
 
@@ -13,7 +14,7 @@ namespace Neo.Network.RPC.Models
 
         public string GasConsumed { get; set; }
 
-        public ContractParameter[] Stack { get; set; }
+        public StackItem[] Stack { get; set; }
 
         public string Tx { get; set; }
 
@@ -22,7 +23,7 @@ namespace Neo.Network.RPC.Models
             JObject json = new JObject();
             json["script"] = Script;
             json["state"] = State;
-            json["gas_consumed"] = GasConsumed;
+            json["gasconsumed"] = GasConsumed;
             try
             {
                 json["stack"] = new JArray(Stack.Select(p => p.ToJson()));
@@ -41,10 +42,10 @@ namespace Neo.Network.RPC.Models
             RpcInvokeResult invokeScriptResult = new RpcInvokeResult();
             invokeScriptResult.Script = json["script"].AsString();
             invokeScriptResult.State = json["state"].TryGetEnum<VM.VMState>();
-            invokeScriptResult.GasConsumed = json["gas_consumed"].AsString();
+            invokeScriptResult.GasConsumed = json["gasconsumed"].AsString();
             try
             {
-                invokeScriptResult.Stack = ((JArray)json["stack"]).Select(p => ContractParameter.FromJson(p)).ToArray();
+                invokeScriptResult.Stack = ((JArray)json["stack"]).Select(p => Utility.StackItemFromJson(p)).ToArray();
             }
             catch { }
             invokeScriptResult.Tx = json["tx"]?.AsString();

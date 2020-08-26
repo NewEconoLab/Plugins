@@ -1,8 +1,16 @@
 using Neo.Cryptography.ECC;
+using Neo.IO.Json;
+using Neo.Network.P2P.Payloads;
 using Neo.SmartContract;
+using Neo.VM.Types;
 using Neo.Wallets;
 using System;
+using System.Globalization;
+using System.Linq;
 using System.Numerics;
+using Array = Neo.VM.Types.Array;
+using Boolean = Neo.VM.Types.Boolean;
+using Buffer = Neo.VM.Types.Buffer;
 
 namespace Neo.Network.RPC
 {
@@ -87,6 +95,126 @@ namespace Neo.Network.RPC
 
             BigInteger res = factor * numerator / denominator;
             return res;
+        }
+
+        public static Block BlockFromJson(JObject json)
+        {
+            Block block = new Block();
+            BlockBase blockBase = block;
+            blockBase.FromJson(json);
+            block.ConsensusData = ConsensusDataFromJson(json["consensusdata"]);
+            block.Transactions = ((JArray)json["tx"]).Select(p => TransactionFromJson(p)).ToArray();
+            return block;
+        }
+
+        public static void FromJson(this BlockBase block, JObject json)
+        {
+            block.Version = (uint)json["version"].AsNumber();
+            block.PrevHash = UInt256.Parse(json["previousblockhash"].AsString());
+            block.MerkleRoot = UInt256.Parse(json["merkleroot"].AsString());
+            block.Timestamp = (ulong)json["time"].AsNumber();
+            block.Index = (uint)json["index"].AsNumber();
+            block.NextConsensus = json["nextconsensus"].AsString().ToScriptHash();
+            block.Witness = ((JArray)json["witnesses"]).Select(p => WitnessFromJson(p)).FirstOrDefault();
+        }
+
+        public static Transaction TransactionFromJson(JObject json)
+        {
+            Transaction tx = new Transaction();
+            tx.Version = byte.Parse(json["version"].AsString());
+            tx.Nonce = uint.Parse(json["nonce"].AsString());
+            tx.Signers = ((JArray)json["signers"]).Select(p => SignerFromJson(p)).ToArray();
+            tx.SystemFee = long.Parse(json["sysfee"].AsString());
+            tx.NetworkFee = long.Parse(json["netfee"].AsString());
+            tx.ValidUntilBlock = uint.Parse(json["validuntilblock"].AsString());
+            tx.Attributes = ((JArray)json["attributes"]).Select(p => TransactionAttributeFromJson(p)).ToArray();
+            tx.Script = Convert.FromBase64String(json["script"].AsString());
+            tx.Witnesses = ((JArray)json["witnesses"]).Select(p => WitnessFromJson(p)).ToArray();
+            return tx;
+        }
+
+        public static Header HeaderFromJson(JObject json)
+        {
+            Header header = new Header();
+            BlockBase blockBase = header;
+            blockBase.FromJson(json);
+            return header;
+        }
+
+        public static Signer SignerFromJson(JObject json)
+        {
+            return new Signer
+            {
+                Account = UInt160.Parse(json["account"].AsString()),
+                Scopes = (WitnessScope)Enum.Parse(typeof(WitnessScope), json["scopes"].AsString()),
+                AllowedContracts = ((JArray)json["allowedContracts"])?.Select(p => UInt160.Parse(p.AsString())).ToArray(),
+                AllowedGroups = ((JArray)json["allowedGroups"])?.Select(p => ECPoint.Parse(p.AsString(), ECCurve.Secp256r1)).ToArray()
+            };
+        }
+
+        public static ConsensusData ConsensusDataFromJson(JObject json)
+        {
+            ConsensusData block = new ConsensusData();
+            block.PrimaryIndex = (uint)json["primary"].AsNumber();
+            block.Nonce = ulong.Parse(json["nonce"].AsString(), NumberStyles.HexNumber);
+            return block;
+        }
+
+        public static TransactionAttribute TransactionAttributeFromJson(JObject json)
+        {
+            TransactionAttributeType usage = Enum.Parse<TransactionAttributeType>(json["type"].AsString());
+
+            switch (usage)
+            {
+                default: throw new FormatException();
+            }
+        }
+
+        public static Witness WitnessFromJson(JObject json)
+        {
+            Witness witness = new Witness();
+            witness.InvocationScript = Convert.FromBase64String(json["invocation"].AsString());
+            witness.VerificationScript = Convert.FromBase64String(json["verification"].AsString());
+            return witness;
+        }
+
+        public static StackItem StackItemFromJson(JObject json)
+        {
+            StackItemType type = json["type"].TryGetEnum<StackItemType>();
+            switch (type)
+            {
+                case StackItemType.Boolean:
+                    return new Boolean(json["value"].AsBoolean());
+                case StackItemType.Buffer:
+                    return new Buffer(Convert.FromBase64String(json["value"].AsString()));
+                case StackItemType.ByteString:
+                    return new ByteString(Convert.FromBase64String(json["value"].AsString()));
+                case StackItemType.Integer:
+                    return new Integer(new BigInteger(json["value"].AsNumber()));
+                case StackItemType.Array:
+                    Array array = new Array();
+                    foreach (var item in (JArray)json["value"])
+                        array.Add(StackItemFromJson(item));
+                    return array;
+                case StackItemType.Struct:
+                    Struct @struct = new Struct();
+                    foreach (var item in (JArray)json["value"])
+                        @struct.Add(StackItemFromJson(item));
+                    return @struct;
+                case StackItemType.Map:
+                    Map map = new Map();
+                    foreach (var item in (JArray)json["value"])
+                    {
+                        PrimitiveType key = (PrimitiveType)StackItemFromJson(item["key"]);
+                        map[key] = StackItemFromJson(item["value"]);
+                    }
+                    return map;
+                case StackItemType.Pointer:
+                    return new Pointer(null, (int)json["value"].AsNumber());
+                case StackItemType.InteropInterface:
+                    return new InteropInterface(new object()); // See https://github.com/neo-project/neo/blob/master/src/neo/VM/Helper.cs#L194
+            }
+            return null;
         }
     }
 }

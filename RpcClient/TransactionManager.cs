@@ -4,6 +4,7 @@ using Neo.Network.P2P.Payloads;
 using Neo.Network.RPC.Models;
 using Neo.SmartContract;
 using Neo.SmartContract.Native;
+using Neo.VM;
 using Neo.Wallets;
 using System;
 using System.Collections.Generic;
@@ -19,7 +20,6 @@ namespace Neo.Network.RPC
         private readonly RpcClient rpcClient;
         private readonly PolicyAPI policyAPI;
         private readonly Nep5API nep5API;
-        private readonly UInt160 sender;
 
         private class SignItem { public Contract Contract; public HashSet<KeyPair> KeyPairs; }
 
@@ -43,12 +43,11 @@ namespace Neo.Network.RPC
         /// </summary>
         /// <param name="rpc">the RPC client to call NEO RPC API</param>
         /// <param name="sender">the account script hash of sender</param>
-        public TransactionManager(RpcClient rpc, UInt160 sender)
+        public TransactionManager(RpcClient rpc)
         {
             rpcClient = rpc;
             policyAPI = new PolicyAPI(rpc);
             nep5API = new Nep5API(rpc);
-            this.sender = sender;
         }
 
         /// <summary>
@@ -56,9 +55,8 @@ namespace Neo.Network.RPC
         /// </summary>
         /// <param name="script">Transaction Script</param>
         /// <param name="attributes">Transaction Attributes</param>
-        /// <param name="cosigners">Transaction Cosigners</param>
         /// <returns></returns>
-        public TransactionManager MakeTransaction(byte[] script, TransactionAttribute[] attributes = null, Cosigner[] cosigners = null)
+        public TransactionManager MakeTransaction(byte[] script, Signer[] signers = null, TransactionAttribute[] attributes = null)
         {
             var random = new Random();
             uint height = rpcClient.GetBlockCount() - 1;
@@ -67,17 +65,13 @@ namespace Neo.Network.RPC
                 Version = 0,
                 Nonce = (uint)random.Next(),
                 Script = script,
-                Sender = sender,
+                Signers = signers,
                 ValidUntilBlock = height + Transaction.MaxValidUntilBlockIncrement,
                 Attributes = attributes ?? Array.Empty<TransactionAttribute>(),
-                Cosigners = cosigners ?? Array.Empty<Cosigner>(),
-                Witnesses = Array.Empty<Witness>()
             };
 
-            // Add witness hashes parameter to pass CheckWitness
-            UInt160[] hashes = Tx.GetScriptHashesForVerifying(null);
-            RpcInvokeResult result = rpcClient.InvokeScript(script, hashes);
-            Tx.SystemFee = Math.Max(long.Parse(result.GasConsumed) - ApplicationEngine.GasFree, 0);
+            RpcInvokeResult result = rpcClient.InvokeScript(script, signers);
+            Tx.SystemFee = long.Parse(result.GasConsumed);
             context = new ContractParametersContext(Tx);
             signStore = new List<SignItem>();
 
@@ -92,7 +86,7 @@ namespace Neo.Network.RPC
         {
             long networkFee = 0;
             UInt160[] hashes = Tx.GetScriptHashesForVerifying(null);
-            int size = Transaction.HeaderSize + Tx.Attributes.GetVarSize() + Tx.Cosigners.GetVarSize() + Tx.Script.GetVarSize() + IO.Helper.GetVarSize(hashes.Length);
+            int size = Transaction.HeaderSize + Tx.Signers.GetVarSize() + Tx.Attributes.GetVarSize() + Tx.Script.GetVarSize() + IO.Helper.GetVarSize(hashes.Length);
             foreach (UInt160 hash in hashes)
             {
                 byte[] witness_script = null;
@@ -109,9 +103,38 @@ namespace Neo.Network.RPC
                 }
 
                 if (witness_script is null) continue;
-                networkFee += Wallet.CalculateNetworkFee(witness_script, ref size);
+                networkFee += CalculateNetworkFee(witness_script, ref size);
             }
             networkFee += size * policyAPI.GetFeePerByte();
+            return networkFee;
+        }
+
+        private long CalculateNetworkFee(byte[] witness_script, ref int size)
+        {
+            long networkFee = 0;
+
+            if (witness_script.IsSignatureContract())
+            {
+                size += 67 + witness_script.GetVarSize();
+                networkFee += ApplicationEngine.OpCodePrices[OpCode.PUSHDATA1] + ApplicationEngine.OpCodePrices[OpCode.PUSHDATA1] + ApplicationEngine.OpCodePrices[OpCode.PUSHNULL] + ApplicationEngine.ECDsaVerifyPrice;
+            }
+            else if (witness_script.IsMultiSigContract(out int m, out int n))
+            {
+                int size_inv = 66 * m;
+                size += IO.Helper.GetVarSize(size_inv) + size_inv + witness_script.GetVarSize();
+                networkFee += ApplicationEngine.OpCodePrices[OpCode.PUSHDATA1] * m;
+                using (ScriptBuilder sb = new ScriptBuilder())
+                    networkFee += ApplicationEngine.OpCodePrices[(OpCode)sb.EmitPush(m).ToArray()[0]];
+                networkFee += ApplicationEngine.OpCodePrices[OpCode.PUSHDATA1] * n;
+                using (ScriptBuilder sb = new ScriptBuilder())
+                    networkFee += ApplicationEngine.OpCodePrices[(OpCode)sb.EmitPush(n).ToArray()[0]];
+                networkFee += ApplicationEngine.OpCodePrices[OpCode.PUSHNULL] + ApplicationEngine.ECDsaVerifyPrice * n;
+            }
+            else
+            {
+                //We can support more contract types in the future.
+            }
+
             return networkFee;
         }
 
@@ -205,9 +228,9 @@ namespace Neo.Network.RPC
         {
             // Calculate NetworkFee
             Tx.NetworkFee = CalculateNetworkFee();
-            var gasBalance = nep5API.BalanceOf(NativeContract.GAS.Hash, sender);
+            var gasBalance = nep5API.BalanceOf(NativeContract.GAS.Hash, Tx.Sender);
             if (gasBalance < Tx.SystemFee + Tx.NetworkFee)
-                throw new InvalidOperationException($"Insufficient GAS in address: {sender.ToAddress()}");
+                throw new InvalidOperationException($"Insufficient GAS in address: {Tx.Sender.ToAddress()}");
 
             // Sign with signStore
             foreach (var item in signStore)
