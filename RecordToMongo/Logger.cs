@@ -1,22 +1,20 @@
-﻿using Neo.IO;
+﻿using MongoDB.Bson;
+using NEL.Simple.SDK.Helper;
+using Neo.Cryptography;
+using Neo.IO;
 using Neo.IO.Json;
 using Neo.Ledger;
-using Neo.VM;
-using System;
-using System.Linq;
-using NEL.Simple.SDK.Helper;
-using MongoDB.Bson;
-using Neo.Wallets;
 using Neo.Persistence;
 using Neo.SmartContract;
-using Neo.SmartContract.Native;
+using Neo.VM;
+using Neo.Wallets;
+using RecordToMongo;
+using System;
 using System.Collections.Generic;
-using System.Numerics;
 using System.IO;
+using System.Linq;
+using System.Numerics;
 using System.Text;
-using Neo.Cryptography;
-using System.Security.Cryptography;
-using System.Diagnostics.Contracts;
 
 namespace Neo.Plugins
 {
@@ -152,7 +150,7 @@ namespace Neo.Plugins
             if (appExec.DumpInfo != null)
             {
                 json["dumpinfo"] = appExec.DumpInfo;
-                RecordExecDetail(appExec.Transaction.Sender, appExec.Transaction.Hash.ToString(), _blockIndex, _blockTimestamp, appExec.DumpInfo);
+                RecordExecDetail(snapshot,appExec.Transaction.Sender, appExec.Transaction.Hash.ToString(), _blockIndex, _blockTimestamp, appExec.DumpInfo);
             }
             else
             {
@@ -210,7 +208,6 @@ namespace Neo.Plugins
             //增加applicationLog输入到数据库
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Application, BsonDocument.Parse(json.ToString()));
         }
-
         public void RecordNep5State(StoreView snapshot,UInt160 _assetHash,uint _updatedBlock, UInt160 _from, UInt160 _to, BigInteger amount ,string decimals,string symbol)
         {
             if (string.IsNullOrEmpty(Settings.Default.Coll_Nep5State))
@@ -283,7 +280,6 @@ namespace Neo.Plugins
                 }
             }
         }
-
         public void RecordAssetInfo(StoreView snapshot, UInt160 assetHash ,out AssetInfo info)
         {
             info = null;
@@ -337,8 +333,7 @@ namespace Neo.Plugins
             info = new AssetInfo(){ assetid = assetHash.ToString(), totalsupply = _totalSupply.ToString(), name = _name, symbol = _symbol, decimals = _decimals };
             MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Nep5Asset, info);
         }
-
-        public void RecordExecDetail(UInt160 sender,string txid,uint blockIndex, ulong blockTimestamp, string dumpinfo)
+        public void RecordExecDetail(StoreView snapshot,UInt160 sender,string txid,uint blockIndex, ulong blockTimestamp, string dumpinfo)
         {
             byte[] bts = dumpinfo.HexToBytes();
             using (MemoryStream ms = new MemoryStream(bts))
@@ -352,11 +347,10 @@ namespace Neo.Plugins
                 froms.Add(sender.ToString());
                 uint index = 0;
                 uint level = 0;
-                execOps(json["script"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender.ToString());
+                execOps(snapshot,json["script"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender.ToString());
             }
         }
-        
-        void execOps(JArray ops, string txid, uint blockIndex, ulong blockTimestamp, List<string> froms, ref uint index, ref uint level, string sender)
+        void execOps(StoreView snapshot,JArray ops, string txid, uint blockIndex, ulong blockTimestamp, List<string> froms, ref uint index, ref uint level, string sender)
         {
             for (var n = 0; n < ops.Count; n++)
             {
@@ -374,7 +368,7 @@ namespace Neo.Plugins
                         index++;
                         level++;
                         froms.Add(to);
-                        execOps(op["subscript"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender);
+                        execOps(snapshot,op["subscript"]["ops"] as JArray, txid, blockIndex, blockTimestamp, froms, ref index, ref level, sender);
                     }
                     else
                     {
@@ -412,6 +406,9 @@ namespace Neo.Plugins
                     var l = (int)level > froms.Count ? froms.Count - 1 : (int)level;
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Create, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
                     MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
+                    ContractState contractState = snapshot.Contracts.TryGet(scriptHash);
+                    ContractInfo contractInfo = new ContractInfo() { contractId = contractState.Id, contractHash = contractState.ScriptHash.ToString(), scriptHexString = contractState.Script.ToHexString(), manifest = contractState.Manifest.ToString() };
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract, contractInfo);
                     index++;
                 }
                 else if (op["op"].AsString() == "SYSCALL"
@@ -424,6 +421,9 @@ namespace Neo.Plugins
                     UInt160 scriptHash =new UInt160(bytes_data.Sha256().RIPEMD160());
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Update, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
                     MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
+                    ContractState contractState = snapshot.Contracts.TryGet(scriptHash);
+                    ContractInfo contractInfo = new ContractInfo() {contractId = contractState.Id,contractHash = contractState.ScriptHash.ToString(), scriptHexString = contractState.Script.ToHexString(), manifest = contractState.Manifest.ToString() };
+                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract, contractInfo);
                     index++;
                 }
                 else if (op["op"].AsString() == "SYSCALL"

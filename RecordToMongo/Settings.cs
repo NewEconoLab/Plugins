@@ -20,6 +20,7 @@ namespace Neo.Plugins
         public string Coll_Block_SysFee { get; }
         public string Coll_Nep5Asset { get; }
         public string Coll_Contract_Exec_Detail { get; }
+        public string Coll_Contract { get; }
         public string[] MongoDbIndex { get; }
 
         public static Settings Default
@@ -43,6 +44,7 @@ namespace Neo.Plugins
             this.Coll_Block_SysFee = section.GetSection("Coll_Block_SysFee").Value;
             this.Coll_Nep5Asset = section.GetSection("Coll_Nep5Asset").Value;
             this.Coll_Contract_Exec_Detail = section.GetSection("Coll_Contract_Exec_Detail").Value;
+            this.Coll_Contract = section.GetSection("Coll_Contract").Value;
             this.MongoDbIndex = section.GetSection("MongoDbIndexs").GetChildren().Select(p => p.Value).ToArray();
             if (!string.IsNullOrEmpty(this.Conn) && !string.IsNullOrEmpty(this.DataBase))
             {

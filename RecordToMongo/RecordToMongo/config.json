@@ -13,6 +13,7 @@
     "Coll_Block_SysFee": "block_sysfee",
     "Coll_Nep5Asset": "Nep5AssetInfo",
     "Coll_Contract_Exec_Detail": "contract_exec_detail",
+    "Coll_Contract": "contract",
     "MongoDbIndexs": [
       "{\"collName\": \"block\",\"indexs\": [{\"indexName\": \"i_index_unique\",\"indexDefinition\": {\"index\": 1},\"isUnique\": true}]}",
       "{\"collName\": \"tx\",\"indexs\": [{\"indexName\": \"i_txid_unique\",\"indexDefinition\": {\"txid\": 1},\"isUnique\": true}]}",
