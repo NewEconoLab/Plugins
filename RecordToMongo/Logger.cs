@@ -407,8 +407,16 @@ namespace Neo.Plugins
                     InvokeInfo info = new InvokeInfo() { from = froms[l], txid = txid, to = scriptHash.ToString(), type = InvokeType.Create, index = index, level = level, blockIndex = blockIndex, blockTimestamp = blockTimestamp };
                     MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract_Exec_Detail, info);
                     ContractState contractState = snapshot.Contracts.TryGet(scriptHash);
-                    ContractInfo contractInfo = new ContractInfo() { contractId = contractState.Id, contractHash = contractState.ScriptHash.ToString(), scriptHexString = contractState.Script.ToHexString(), manifest = contractState.Manifest.ToString() };
-                    MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract, contractInfo);
+                    if (contractState != null)
+                    {
+                        ContractInfo contractInfo = new ContractInfo() { contractId = contractState.Id, contractHash = contractState.ScriptHash.ToString(), scriptHexString = contractState.Script.ToHexString(), manifest = contractState.Manifest.ToString() };
+                        MongoDBHelper.InsertOne(Settings.Default.Conn, Settings.Default.DataBase, Settings.Default.Coll_Contract, contractInfo);
+                    }
+                    else 
+                    {
+                        Console.WriteLine(scriptHash+"这个合约没找到~");
+                    }
+
                     index++;
                 }
                 else if (op["op"].AsString() == "SYSCALL"
